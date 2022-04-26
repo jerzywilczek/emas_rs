@@ -18,7 +18,7 @@ pub fn rastrigin(values: &[f64; RASTRIGIN_DIMS]) -> f64 {
 struct Agent {
     genes: [f64; RASTRIGIN_DIMS],
     energy: f64,
-    id: (usize, usize)
+    id: (usize, usize),
 }
 
 impl Agent {
@@ -30,7 +30,7 @@ impl Agent {
         Agent {
             genes,
             energy: starting_energy,
-            id
+            id,
         }
     }
 
@@ -102,7 +102,7 @@ struct Island {
 impl Island {
     fn new(agents_amount: usize, id: usize) -> Island {
         let agents: HashSet<_> = (0..agents_amount).enumerate()
-            .map(|(agent_id,_)| Agent::rand_agent(1.0/(agents_amount as f64), (id, agent_id)))
+            .map(|(agent_id, _)| Agent::rand_agent(1.0 / (agents_amount as f64), (id, agent_id)))
             .collect();
 
         Island {
@@ -201,7 +201,6 @@ impl Island {
     }
 
     fn deaths(&mut self, agents: Vec<usize>, death_level: f64) {
-
         for i in agents {
             if self.agents[i].energy < death_level {
                 self.agents.remove(i);
@@ -313,7 +312,7 @@ impl System {
             .unwrap()
     }
 
-    pub fn run(&mut self) -> [f64; RASTRIGIN_DIMS]{
+    pub fn run(&mut self) -> [f64; RASTRIGIN_DIMS] {
         for _ in 0..10000 {
             for island in self.islands.iter_mut() {
                 island.step(
@@ -321,7 +320,7 @@ impl System {
                     self.death_level,
                     self.reproduction_level,
                     self.migration_level,
-                    self.energy_passed_on_reproduction
+                    self.energy_passed_on_reproduction,
                 );
             }
             self.migrate_agents();
@@ -431,9 +430,62 @@ impl SystemBuilder {
     }
 }
 
+
+// O(1): insert(), remove(), contains(), get_random()
+struct HashSetGetRandom<T> {
+    map: HashMap<T, usize>,
+    vec: Vec<T>,
+}
+
+impl<T: Clone + Eq + Hash> HashSetGetRandom<T> {
+    fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+            vec: Vec::new(),
+        }
+    }
+
+    fn insert(&mut self, elem: T) -> bool {
+        if !self.map.contains_key(&elem) {
+            self.map.insert(elem.clone(), self.vec.len());
+            self.vec.push(elem);
+            return true;
+        }
+        false
+    }
+
+    fn remove(&mut self, elem: &T) -> bool {
+        match self.map.remove(elem) {
+            Some(index) => {
+                self.vec.swap_remove(index);
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn contains(&self, elem: &T) -> bool {
+        self.map.contains_key(elem)
+    }
+
+    fn get_random(&self) -> &T {
+        &self.vec[thread_rng().gen_range(0..self.vec.len())]
+    }
+}
+
+impl<T: Clone + Eq + Hash> FromIterator<T> for HashSetGetRandom<T> {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+        let mut c = HashSetGetRandom::new();
+        for i in iter {
+            c.insert(i);
+        }
+        c
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{rastrigin, SystemBuilder};
+    use crate::{rastrigin, SystemBuilder, HashSetGetRandom};
 
     #[test]
     fn rastrigin_min_test() {
@@ -447,6 +499,19 @@ mod tests {
             .build();
         let sol = system.run();
         println!("[{}, {}]", sol[0], sol[1]);
+    }
+
+    #[test]
+    fn hash_set_get_random() {
+        let mut c: HashSetGetRandom<_> = [2, 1, 3, 7].into_iter().collect();
+        assert_eq!(true, c.contains(&1));
+        assert_eq!(false, c.contains(&2137));
+        assert_eq!(true, c.remove(&3));
+        assert_eq!(true, c.contains(&2));
+        assert_eq!(false, c.contains(&3));
+        assert_eq!(true, c.insert(3));
+        assert_eq!(true, c.contains(&3));
+        assert_eq!(false, c.remove(&2137));
     }
 }
 
