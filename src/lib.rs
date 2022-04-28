@@ -458,6 +458,9 @@ impl<T: Clone + Eq + Hash> HashSetGetRandom<T> {
         match self.map.remove(elem) {
             Some(index) => {
                 self.vec.swap_remove(index);
+                if index < self.vec.len() {
+                    self.map.insert(self.vec[index].clone(), index);
+                }
                 true
             }
             None => false,
@@ -468,13 +471,28 @@ impl<T: Clone + Eq + Hash> HashSetGetRandom<T> {
         self.map.contains_key(elem)
     }
 
+    fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
     fn get_random(&self) -> &T {
         &self.vec[thread_rng().gen_range(0..self.vec.len())]
+    }
+
+    fn get_random_mut(&mut self) -> &mut T {
+        let rand_idx = thread_rng().gen_range(0..self.vec.len());
+        &mut self.vec[rand_idx]
+    }
+
+    fn remove_random(&mut self) -> T {
+        let el = self.get_random().clone(); // todo: nie wiem jak inaczej niż clone
+        self.remove(&el);
+        el
     }
 }
 
 impl<T: Clone + Eq + Hash> FromIterator<T> for HashSetGetRandom<T> {
-    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut c = HashSetGetRandom::new();
         for i in iter {
             c.insert(i);
@@ -504,14 +522,38 @@ mod tests {
     #[test]
     fn hash_set_get_random() {
         let mut c: HashSetGetRandom<_> = [2, 1, 3, 7].into_iter().collect();
-        assert_eq!(true, c.contains(&1));
-        assert_eq!(false, c.contains(&2137));
-        assert_eq!(true, c.remove(&3));
-        assert_eq!(true, c.contains(&2));
-        assert_eq!(false, c.contains(&3));
-        assert_eq!(true, c.insert(3));
-        assert_eq!(true, c.contains(&3));
-        assert_eq!(false, c.remove(&2137));
+
+        assert!(c.contains(&1));
+        assert!(!c.contains(&2137));
+        assert!(c.remove(&3));
+        assert!(c.contains(&2));
+        assert!(!c.contains(&3));
+        assert!(c.insert(3));
+        assert!(c.contains(&3));
+        assert!(!c.remove(&2137));
+
+        // test if map gets updated when removing element
+        c.remove(&1);
+        c.remove(&7);
+        assert!(!c.contains(&7));
+
+        // test is_empty()
+        assert!(!c.is_empty());
+        for el in [2, 1, 3, 7] {
+            c.remove(&el);
+        }
+        assert!(c.is_empty());
+
+        // test remove_random()
+        c = [2, 1, 3, 7].into_iter().collect();
+        assert!(!c.is_empty());
+        let mut el = c.remove_random();
+        for _ in 0..3 {
+            let new_el = c.remove_random();
+            assert_ne!(el, new_el);
+            el = new_el;
+        }
+        assert!(c.is_empty());
     }
 }
 
