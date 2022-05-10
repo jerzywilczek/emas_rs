@@ -67,7 +67,7 @@ impl Agent {
 
         let (loser, winner) = if d >= 0.0 { (self, other) } else { (other, self) };
 
-        let d = d.abs() * loser.energy;
+        let d = d.abs() * loser.energy;https://nyaa.si/
 
         loser.energy -= d;
         winner.energy += d;
@@ -124,10 +124,10 @@ impl Island {
             .map(|i| (probabilities.randomize_action(), i))
             .fold(
                 HashMap::from([
-                    (Action::DEATH, Vec::new()),
-                    (Action::MIGRATION, Vec::new()),
-                    (Action::REPRODUCTION, Vec::new()),
-                    (Action::EVALUATION, Vec::new()),
+                    (Action::Death, Vec::new()),
+                    (Action::Migrations, Vec::new()),
+                    (Action::Reproduction, Vec::new()),
+                    (Action::Evaluation, Vec::new()),
                 ]),
                 |mut acc, (action, i)| {
                     acc.get_mut(&action).unwrap().push(i);
@@ -135,10 +135,10 @@ impl Island {
                 },
             );
 
-        self.evaluations(action_sorted.remove(&Action::EVALUATION).unwrap());
-        self.reproductions(action_sorted.remove(&Action::REPRODUCTION).unwrap(), reproduction_level, energy_passed);
-        self.migrations(action_sorted.remove(&Action::MIGRATION).unwrap(), migration_level);
-        self.deaths(action_sorted.remove(&Action::DEATH).unwrap(), death_level);
+        self.evaluations(action_sorted.remove(&Action::Evaluation).unwrap());
+        self.reproductions(action_sorted.remove(&Action::Reproduction).unwrap(), reproduction_level, energy_passed);
+        self.migrations(action_sorted.remove(&Action::Migrations).unwrap(), migration_level);
+        self.deaths(action_sorted.remove(&Action::Death).unwrap(), death_level);
     }
 
     fn get_pair(&mut self, i: usize, j: usize) -> (&mut Agent, &mut Agent) {
@@ -223,10 +223,10 @@ pub struct ActionProbabilities {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 enum Action {
-    DEATH,
-    MIGRATION,
-    REPRODUCTION,
-    EVALUATION,
+    Death,
+    Migrations,
+    Reproduction,
+    Evaluation,
 }
 
 
@@ -260,13 +260,13 @@ impl ActionProbabilities {
     fn randomize_action(&self) -> Action {
         let r = random::<f64>();
         return if r < self.death_threshold() {
-            Action::DEATH
+            Action::Death
         } else if r < self.migration_threshold() {
-            Action::MIGRATION
+            Action::Migrations
         } else if r < self.reproduction_threshold() {
-            Action::REPRODUCTION
+            Action::Reproduction
         } else {
-            Action::EVALUATION
+            Action::Evaluation
         };
     }
 }
