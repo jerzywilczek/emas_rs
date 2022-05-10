@@ -1,7 +1,6 @@
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::f64::consts::PI;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 use rand::{random, Rng, thread_rng};
 use rand::prelude::SliceRandom;
 
@@ -18,11 +17,11 @@ pub fn rastrigin(values: &[f64; RASTRIGIN_DIMS]) -> f64 {
 struct Agent {
     genes: [f64; RASTRIGIN_DIMS],
     energy: f64,
-    id: (usize, usize),
+    // _id: (usize, usize),
 }
 
 impl Agent {
-    fn rand_agent(starting_energy: f64, id: (usize, usize)) -> Agent {
+    fn rand_agent(starting_energy: f64) -> Agent {
         let mut genes = [0.0; RASTRIGIN_DIMS];
         for gene in genes.iter_mut() {
             *gene = random::<f64>() * 10.24 - 5.12;
@@ -30,12 +29,12 @@ impl Agent {
         Agent {
             genes,
             energy: starting_energy,
-            id,
+            // _id,
         }
     }
 
 
-    fn from_parents(parent1: &mut Agent, parent2: &mut Agent, energy_passed: f64, id: (usize, usize)) -> Agent {
+    fn from_parents(parent1: &mut Agent, parent2: &mut Agent, energy_passed: f64) -> Agent {
         let mut genes = [0.0; RASTRIGIN_DIMS];
         for i in 0..RASTRIGIN_DIMS {
             genes[i] = if random::<bool>() { parent1.genes[i] } else { parent2.genes[i] };
@@ -54,7 +53,7 @@ impl Agent {
         Agent {
             genes,
             energy,
-            id,
+            // _id,
         }
     }
 
@@ -67,7 +66,7 @@ impl Agent {
 
         let (loser, winner) = if d >= 0.0 { (self, other) } else { (other, self) };
 
-        let d = d.abs() * loser.energy;https://nyaa.si/
+        let d = d.abs() * loser.energy;
 
         loser.energy -= d;
         winner.energy += d;
@@ -76,37 +75,37 @@ impl Agent {
     }
 }
 
-impl Hash for Agent {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.0.hash(state);
-        self.id.1.hash(state);
-    }
-}
+// impl Hash for Agent {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         self._id.0.hash(state);
+//         self._id.1.hash(state);
+//     }
+// }
 
-impl PartialEq for Agent {
-    fn eq(&self, other: &Self) -> bool {
-        self.id.0 == other.id.0 && self.id.1 == other.id.1
-    }
-}
+// impl PartialEq for Agent {
+//     fn eq(&self, other: &Self) -> bool {
+//         self._id.0 == other._id.0 && self._id.1 == other._id.1
+//     }
+// }
 
-impl Eq for Agent {}
+// impl Eq for Agent {}
 
 #[derive(Debug)]
 struct Island {
-    id: usize,
-    agents: HashSet<Agent>,
-    // agents: Vec<Agent>,
+    _id: usize,
+    // agents: HashSet<Agent>,
+    agents: Vec<Agent>,
     migration_queue: Vec<Agent>,
 }
 
 impl Island {
     fn new(agents_amount: usize, id: usize) -> Island {
-        let agents: HashSet<_> = (0..agents_amount).enumerate()
-            .map(|(agent_id, _)| Agent::rand_agent(1.0 / (agents_amount as f64), (id, agent_id)))
+        let agents: Vec<_> = (0..agents_amount).enumerate()
+            .map(|(_, _)| Agent::rand_agent(1.0 / (agents_amount as f64)))
             .collect();
 
         Island {
-            id,
+            _id: id,
             agents,
             migration_queue: Vec::new(),
         }
@@ -137,8 +136,9 @@ impl Island {
 
         self.evaluations(action_sorted.remove(&Action::Evaluation).unwrap());
         self.reproductions(action_sorted.remove(&Action::Reproduction).unwrap(), reproduction_level, energy_passed);
-        self.migrations(action_sorted.remove(&Action::Migrations).unwrap(), migration_level);
-        self.deaths(action_sorted.remove(&Action::Death).unwrap(), death_level);
+        let mut deaths = action_sorted.remove(&Action::Death).unwrap();
+        self.migrations(action_sorted.remove(&Action::Migrations).unwrap(), migration_level, &mut deaths);
+        self.deaths(deaths, death_level);
     }
 
     fn get_pair(&mut self, i: usize, j: usize) -> (&mut Agent, &mut Agent) {
@@ -159,20 +159,39 @@ impl Island {
             let mut j = rng.gen_range(0..self.agents.len());
             while j == i { j = rng.gen_range(0..self.agents.len()); };
 
-            let (a1, a2) = self.get_pair(i, j);
 
+            let (a1, a2) = self.get_pair(i, j);
             a1.evaluate(a2);
         }
     }
 
-    fn migrations(&mut self, agents: Vec<usize>, migration_level: f64) {
-        agents
-            .into_iter()
-            .filter(|&i| self.agents[i].energy >= migration_level).collect::<Vec<_>>().iter()
-            .for_each(|&i| {
-                let agent = self.agents.remove(i);
-                self.migrate(agent)
-            });
+    fn migrations(&mut self, mut agents: Vec<usize>, migration_level: f64, deaths_queue: &mut Vec<usize>) {
+        // agents
+        //     .into_iter()
+        //     .filter(|&i| self.agents[i].energy >= migration_level).collect::<Vec<_>>().iter()
+        //     .for_each(|&i| {
+        //         let agent = self.agents.remove(i);
+        //         self.migrate(agent)
+        //     });
+
+        for i in 0..agents.len() {
+            if self.agents[agents[i]].energy >= migration_level {
+                let agent = self.agents.remove(agents[i]);
+                self.migrate(agent);
+
+                for j in 0..agents.len() {
+                    if agents[j] > agents[i] {
+                        agents[j] -= 1;
+                    }
+                }
+
+                for j in 0..deaths_queue.len() {
+                    if deaths_queue[j] > agents[i] {
+                        deaths_queue[j] -= 1;
+                    }
+                }
+            }
+        }
     }
 
     fn reproductions(&mut self, agents: Vec<usize>, reproduction_level: f64, energy_passed: f64) {
@@ -200,10 +219,22 @@ impl Island {
         }
     }
 
-    fn deaths(&mut self, agents: Vec<usize>, death_level: f64) {
-        for i in agents {
-            if self.agents[i].energy < death_level {
-                self.agents.remove(i);
+    fn deaths(&mut self, mut agents: Vec<usize>, death_level: f64) {
+        // for i in agents {
+        //     if self.agents[i].energy < death_level {
+        //         self.agents.remove(i);
+        //     }
+        // }
+
+        for i in 0..agents.len() {
+            if self.agents[agents[i]].energy < death_level {
+                self.agents.remove(agents[i]);
+
+                for j in 0..agents.len() {
+                    if agents[j] > agents[i] {
+                        agents[j] -= 1;
+                    }
+                }
             }
         }
     }
@@ -212,6 +243,7 @@ impl Island {
         self.migration_queue.push(agent);
     }
 }
+
 
 #[derive(Copy, Clone, Debug)]
 pub struct ActionProbabilities {
@@ -252,7 +284,7 @@ impl ActionProbabilities {
     fn reproduction_threshold(&self) -> f64 {
         self.migration_threshold() + self.reproduction
     }
-
+    #[allow(dead_code)]
     fn evaluation_threshold(&self) -> f64 {
         self.reproduction_threshold() + self.evaluation
     }
@@ -313,7 +345,7 @@ impl System {
     }
 
     pub fn run(&mut self) -> [f64; RASTRIGIN_DIMS] {
-        for _ in 0..10000 {
+        for _ in 0..10_000 {
             for island in self.islands.iter_mut() {
                 island.step(
                     &self.probabilities,
@@ -337,7 +369,7 @@ pub struct SystemBuilder {
     death_ratio: f64,
     migration_ratio: f64,
     reproduction_ratio: f64,
-    probabilites: ActionProbabilities,
+    probabilities: ActionProbabilities,
 }
 
 impl SystemBuilder {
@@ -346,10 +378,10 @@ impl SystemBuilder {
             island_amount: 10,
             agents_per_island: 100,
             energy_passed_on_reproduction: 0.25,
-            death_ratio: 0.1,
+            death_ratio: 0.0,
             migration_ratio: 2.0,
             reproduction_ratio: 1.5,
-            probabilites: ActionProbabilities {
+            probabilities: ActionProbabilities {
                 death: 0.1,
                 migration: 0.1,
                 reproduction: 0.3,
@@ -408,9 +440,9 @@ impl SystemBuilder {
         self
     }
 
-    pub fn probabilites(mut self, ratios: ActionProbabilities) -> Self {
+    pub fn probabilities(mut self, ratios: ActionProbabilities) -> Self {
         assert_eq!(ratios.death + ratios.evaluation + ratios.migration + ratios.reproduction, 1.0);
-        self.probabilites = ratios;
+        self.probabilities = ratios;
         self
     }
 
@@ -425,7 +457,7 @@ impl SystemBuilder {
             death_level: self.death_level(),
             migration_level: self.migration_level(),
             reproduction_level: self.reproduction_level(),
-            probabilities: self.probabilites,
+            probabilities: self.probabilities,
         }
     }
 }
@@ -437,6 +469,7 @@ struct HashSetGetRandom<T> {
     vec: Vec<T>,
 }
 
+#[allow(dead_code)]
 impl<T: Clone + Eq + Hash> HashSetGetRandom<T> {
     fn new() -> Self {
         Self {
