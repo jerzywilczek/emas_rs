@@ -1,6 +1,6 @@
 use rand::prelude::SliceRandom;
 use rand::{random, seq::IteratorRandom, thread_rng, Rng};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::hash::Hash;
 
@@ -16,14 +16,14 @@ pub fn rastrigin(values: &[f64; RASTRIGIN_DIMS]) -> f64 {
     fx
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
 
 #[derive(Debug, Clone)]
 struct Agent {
     genes: [f64; RASTRIGIN_DIMS],
     energy: u32,
-    _id: AgentId,
+    id: AgentId,
 }
 
 impl Agent {
@@ -31,7 +31,7 @@ impl Agent {
         Agent {
             genes: [0.0; RASTRIGIN_DIMS],
             energy: starting_energy,
-            _id: id,
+            id,
         }
     }
 
@@ -43,7 +43,7 @@ impl Agent {
         Agent {
             genes,
             energy: starting_energy,
-            _id: id,
+            id: id,
         }
     }
 
@@ -108,7 +108,7 @@ impl Agent {
 
 impl PartialEq for Agent {
     fn eq(&self, other: &Self) -> bool {
-        self._id.0 == other._id.0 && self._id.1 == other._id.1
+        self.id.0 == other.id.0 && self.id.1 == other.id.1
     }
 }
 
@@ -155,6 +155,14 @@ impl Island {
         self.last_agent_id
     }
 
+    fn get_pair_mut(&mut self, a1_id: &AgentId, a2_id: &AgentId) -> (&mut Agent, &mut Agent) {
+        assert_ne!(a1_id, a2_id);
+
+        let a1 = self.agents.get_mut(&a1_id).unwrap() as *mut Agent;
+        let a2 = self.agents.get_mut(&a2_id).unwrap() as *mut Agent;
+        unsafe { (&mut *a1, &mut *a2) }
+    }
+
     fn step(
         &mut self,
         reproduction_level: u32,
@@ -165,10 +173,10 @@ impl Island {
         let mut to_reproduction = Vec::new();
         let mut to_combat = Vec::new();
 
-        for (_, agent) in self.agents.iter_mut() {
+        for (&id, agent) in self.agents.iter_mut() {
             match agent.pick_action(reproduction_level, combat_level) {
-                Action::Reproduce => to_reproduction.push(agent),
-                Action::Combat => to_combat.push(agent),
+                Action::Reproduce => to_reproduction.push(id),
+                Action::Combat => to_combat.push(id),
                 Action::Idle => (),
             }
         }
@@ -178,15 +186,20 @@ impl Island {
         self.deaths();
     }
 
-    fn reproductions(&mut self, mut agents: Vec<&mut Agent>, energy_passed_percent: f64) {
+    fn reproductions(&mut self, mut agents: Vec<AgentId>, energy_passed_percent: f64) {
         agents.shuffle(&mut thread_rng());
         while agents.len() >= 2 {
-            let mut a1 = agents.pop().unwrap();
-            let mut a2 = agents.pop().unwrap();
+            let a1_id = agents.pop().unwrap();
+            let a2_id = agents.pop().unwrap();
+
             let ch1_id = AgentId(self._id, self.new_agent_id());
             let ch2_id = AgentId(self._id, self.new_agent_id());
+
+            let (a1, a2) = self.get_pair_mut(&a1_id, &a2_id);
+
+
             let offspring = a1.reproduce(
-                &mut a2,
+                a2,
                 energy_passed_percent,
                 ch1_id.clone(),
                 ch2_id.clone(),
@@ -203,12 +216,15 @@ impl Island {
         }
     }
 
-    fn combats(&mut self, mut agents: Vec<&mut Agent>, energy: u32) {
+    fn combats(&mut self, mut agents: Vec<AgentId>, energy: u32) {
         agents.shuffle(&mut thread_rng());
         while agents.len() >= 2 {
-            let mut a1 = agents.pop().unwrap();
-            let mut a2 = agents.pop().unwrap();
-            a1.combat(&mut a2, energy);
+            let a1_id = agents.pop().unwrap();
+            let a2_id = agents.pop().unwrap();
+
+            let (a1, a2) = self.get_pair_mut(&a1_id, &a2_id);
+
+            a1.combat(a2, energy);
         }
     }
 
@@ -217,7 +233,7 @@ impl Island {
             .agents
             .iter()
             .filter(|(_, agent)| agent.energy == 0)
-            .map(|(id, agent)| id.clone())
+            .map(|(id, _)| id.clone())
             .collect();
 
         for id in to_remove.iter() {
@@ -226,14 +242,14 @@ impl Island {
     }
 
     fn step_migrations(&mut self, best_amount: usize, elite_amount: usize) {
-        let mut candidates: Vec<_> = self.agents.iter().collect::<Vec<_>>();
-        candidates.sort_by(|a1, a2| a1.1.energy.cmp(&a2.1.energy));
+        let mut candidates: Vec<_> = self.agents.keys().copied().collect::<Vec<_>>();
+        candidates.sort_by(|a1, a2| self.agents.get(a1).unwrap().energy.cmp(&self.agents.get(a2).unwrap().energy));
         let best_amount = best_amount.min(candidates.len());
         let elite_amount = elite_amount.min(best_amount);
         let best = &candidates[..best_amount];
 
         let elite = best.iter().choose_multiple(&mut thread_rng(), elite_amount);
-        for (id, agent) in elite {
+        for id in elite {
             self.migration_queue.push(self.agents.remove(id).unwrap());
         }
     }
@@ -251,7 +267,7 @@ pub struct System {
 
 impl System {
     fn migrate_agents(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = thread_rng();
         let len = self.islands.len();
 
         let mut push_queue = Vec::new();
@@ -267,7 +283,7 @@ impl System {
         }
 
         for (island_id, agent) in push_queue {
-            self.islands[island_id].agents.insert(agent._id, agent);
+            self.islands[island_id].agents.insert(agent.id, agent);
         }
     }
 
@@ -446,7 +462,7 @@ impl<T: Clone + Eq + Hash> HashSetGetRandom<T> {
 }
 
 impl<T: Clone + Eq + Hash> FromIterator<T> for HashSetGetRandom<T> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
         let mut c = HashSetGetRandom::new();
         for i in iter {
             c.insert(i);
