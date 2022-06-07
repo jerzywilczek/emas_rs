@@ -151,7 +151,7 @@ impl Island {
             })
             .collect();
 
-        let historical_best = agents.get(&AgentId(0, 0)).unwrap().clone();
+        let historical_best = agents.get(&AgentId(id, 0)).unwrap().clone();
         Island {
             _id: id,
             agents,
