@@ -440,11 +440,4 @@ mod tests {
     fn rastrigin_min_test() {
         assert_eq!(rastrigin(&[0.0, 0.0]), 0.0)
     }
-
-    // #[test]
-    // fn general_test() {
-    //     let mut system = SystemBuilder::new().build();
-    //     let sol = system.run();
-    //     println!("[{}, {}]", sol[0], sol[1]);
-    // }
 }
