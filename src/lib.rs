@@ -24,6 +24,7 @@ struct Agent {
     genes: [f64; RASTRIGIN_DIMS],
     energy: u32,
     id: AgentId,
+    fitness: f64
 }
 
 impl Agent {
@@ -36,6 +37,7 @@ impl Agent {
             genes,
             energy: starting_energy,
             id,
+            fitness: rastrigin(&genes)
         }
     }
 
@@ -55,11 +57,13 @@ impl Agent {
             energy: (par1_en + par2_en) / 2,
             id: ch1_id,
             genes: [0.0, 0.0],
+            fitness: 0.0,
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
             id: ch2_id,
             genes: [0.0, 0.0],
+            fitness: 0.0,
         };
 
         let cut_point = thread_rng().gen_range(0..self.genes.len());
@@ -71,6 +75,9 @@ impl Agent {
             ch1.genes[i] = other.genes[i];
             ch1.genes[i] = self.genes[i];
         }
+
+        ch1.fitness = rastrigin(&ch1.genes);
+        ch2.fitness = rastrigin(&ch2.genes);
 
         (ch1, ch2)
     }
@@ -84,10 +91,6 @@ impl Agent {
         let energy = energy.min(looser.energy);
         looser.energy -= energy;
         winner.energy += energy;
-    }
-
-    fn fitness(&self) -> f64 {
-        rastrigin(&self.genes)
     }
 
     fn pick_action(&self, reproduction_level: u32, combat_level: u32) -> Action {
@@ -205,10 +208,10 @@ impl Island {
                 ch2_id.clone(),
             );
 
-            if offspring.0.fitness() > self.historical_best.fitness() {
+            if offspring.0.fitness > self.historical_best.fitness {
                 self.historical_best = offspring.0.clone();
             }
-            if offspring.1.fitness() > self.historical_best.fitness() {
+            if offspring.1.fitness > self.historical_best.fitness {
                 self.historical_best = offspring.1.clone();
             }
             self.agents.insert(ch1_id, offspring.0);
@@ -295,8 +298,8 @@ impl System {
             .min_by(|island1, island2| {
                 island1
                     .historical_best
-                    .fitness()
-                    .partial_cmp(&island2.historical_best.fitness())
+                    .fitness
+                    .partial_cmp(&island2.historical_best.fitness)
                     .unwrap()
             })
             .unwrap()
