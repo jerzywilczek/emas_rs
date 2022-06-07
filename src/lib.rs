@@ -24,7 +24,14 @@ struct Agent {
     genes: [f64; RASTRIGIN_DIMS],
     energy: u32,
     id: AgentId,
-    fitness: f64
+    fitness: f64,
+}
+
+fn combat_win_chance(fit1: f64, fit2: f64) -> f64 {
+    if fit1 >= fit2 {
+        return 0.8;
+    }
+    0.2
 }
 
 impl Agent {
@@ -37,7 +44,7 @@ impl Agent {
             genes,
             energy: starting_energy,
             id,
-            fitness: rastrigin(&genes)
+            fitness: rastrigin(&genes),
         }
     }
 
@@ -82,12 +89,13 @@ impl Agent {
         (ch1, ch2)
     }
 
-    fn combat(&mut self, other: &mut Agent, energy: u32) {
-        let (winner, looser) = if self.fitness() <= other.fitness() {
-            (self, other)
-        } else {
-            (other, self)
-        };
+    fn combat(&mut self, other: &mut Agent, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
+        let (winner, looser) =
+            if thread_rng().gen::<f64>() < win_chance_fn(self.fitness, other.fitness) {
+                (self, other)
+            } else {
+                (other, self)
+            };
         let energy = energy.min(looser.energy);
         looser.energy -= energy;
         winner.energy += energy;
@@ -227,7 +235,7 @@ impl Island {
 
             let (a1, a2) = self.get_pair_mut(&a1_id, &a2_id);
 
-            a1.combat(a2, energy);
+            a1.combat(a2, energy, combat_win_chance);
         }
     }
 
