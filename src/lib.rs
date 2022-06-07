@@ -2,7 +2,11 @@ use rand::prelude::SliceRandom;
 use rand::{random, seq::IteratorRandom, thread_rng, Rng};
 use std::collections::HashMap;
 use std::f64::consts::PI;
+use std::fs::File;
 use std::hash::Hash;
+use std::io::Write;
+use std::time::Instant;
+use indicatif::ProgressIterator;
 
 pub const RASTRIGIN_DIMS: usize = 2;
 
@@ -27,12 +31,31 @@ struct Agent {
     fitness: f64,
 }
 
-fn combat_win_chance(fit1: f64, fit2: f64) -> f64 {
-    if fit1 >= fit2 {
+
+struct ActionProbability {
+    combat: f64,
+    reproduce: f64,
+}
+
+
+fn combat_win_chance(this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
+    if this_agent_fitness < other_agent_fitness {
         return 0.8;
     }
     0.2
 }
+
+
+fn action_take_chance(energy: u32) -> ActionProbability {
+    if energy < 25 {
+        return ActionProbability { combat: 1.0, reproduce: 0.0 };
+    }
+    if energy < 50 {
+        return ActionProbability { combat: 0.75, reproduce: 0.25 };
+    }
+    ActionProbability { combat: 0.0, reproduce: 1.0 }
+}
+//TODO: Usunac wymagane poziomy energii z systemu, bo to ta funkcja bedzie ogarniala[reprrodukcja i rozmnazanko]
 
 impl Agent {
     fn rand_agent(starting_energy: u32, id: AgentId) -> Agent {
@@ -83,10 +106,30 @@ impl Agent {
             ch1.genes[i] = self.genes[i];
         }
 
+        ch1.mutate();
+        ch2.mutate();
+
         ch1.fitness = rastrigin(&ch1.genes);
         ch2.fitness = rastrigin(&ch2.genes);
 
+
         (ch1, ch2)
+    }
+
+    fn mutate(&mut self) {
+        let mut rng = thread_rng();
+        let gene_mut_chance = 1.0;
+        let mutation_range = 5.12 / 10.0;
+        for i in 0..self.genes.len() {
+            if rng.gen::<f64>() < gene_mut_chance {
+                let mutation_value = rng.gen::<f64>() * mutation_range;
+                if rng.gen() {
+                    self.genes[i] = (self.genes[i] + mutation_value).min(5.12);
+                } else {
+                    self.genes[i] = (self.genes[i] - mutation_value).max(-5.12);
+                }
+            }
+        }
     }
 
     fn combat(&mut self, other: &mut Agent, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
@@ -101,19 +144,27 @@ impl Agent {
         winner.energy += energy;
     }
 
-    fn pick_action(&self, reproduction_level: u32, combat_level: u32) -> Action {
-        if self.energy >= combat_level {
-            if self.energy >= reproduction_level {
-                let mut rng = thread_rng();
-                return if rng.gen::<bool>() {
-                    Action::Reproduce
-                } else {
-                    Action::Combat
-                };
-            }
+    fn pick_action(&self, action_probability: ActionProbability) -> Action {
+        assert_eq!(action_probability.reproduce + action_probability.combat, 1.0);
+
+        if thread_rng().gen::<f64>() < action_probability.combat {
             return Action::Combat;
+        } else {
+            Action::Reproduce
         }
-        Action::Idle
+
+        // if self.energy >= combat_level {
+        //     if self.energy >= reproduction_level {
+        //         let mut rng = thread_rng();
+        //         return if rng.gen::<bool>() {
+        //             Action::Reproduce
+        //         } else {
+        //             Action::Combat
+        //         };
+        //     }
+        //     return Action::Combat;
+        // }
+        // Action::Idle
     }
 }
 
@@ -128,7 +179,6 @@ impl Eq for Agent {}
 enum Action {
     Combat,
     Reproduce,
-    Idle,
 }
 
 #[derive(Debug)]
@@ -176,8 +226,6 @@ impl Island {
 
     fn step(
         &mut self,
-        reproduction_level: u32,
-        combat_level: u32,
         energy_reproduction_percent: f64,
         energy_combat: u32,
     ) {
@@ -185,10 +233,9 @@ impl Island {
         let mut to_combat = Vec::new();
 
         for (&id, agent) in self.agents.iter_mut() {
-            match agent.pick_action(reproduction_level, combat_level) {
+            match agent.pick_action(action_take_chance(agent.energy)) {
                 Action::Reproduce => to_reproduction.push(id),
                 Action::Combat => to_combat.push(id),
-                Action::Idle => (),
             }
         }
 
@@ -216,10 +263,10 @@ impl Island {
                 ch2_id.clone(),
             );
 
-            if offspring.0.fitness > self.historical_best.fitness {
+            if offspring.0.fitness < self.historical_best.fitness {
                 self.historical_best = offspring.0.clone();
             }
-            if offspring.1.fitness > self.historical_best.fitness {
+            if offspring.1.fitness < self.historical_best.fitness {
                 self.historical_best = offspring.1.clone();
             }
             self.agents.insert(ch1_id, offspring.0);
@@ -269,16 +316,52 @@ impl Island {
 #[derive(Debug)]
 pub struct System {
     islands: Vec<Island>,
-    reproduction_level: u32,
-    combat_level: u32,
+    steps: u32,
     energy_reproduction_percent: f64,
     energy_combat: u32,
     migration_steps: u32,
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
+    logs: Vec<String>,
+    log_steps: u32,
 }
 
 impl System {
+    fn log(&mut self, start: Instant) {
+        let timestamp = start.elapsed().as_secs_f32();
+        let historical_best = rastrigin(&self.best_sol());
+        let agents_amount = self.islands
+            .iter()
+            .map(|i| i.agents.len())
+            .sum::<usize>();
+        let energy_sum = self.islands
+            .iter()
+            .map(|i|
+                i.agents.values().map(|a| a.energy).sum::<u32>()
+            )
+            .sum::<u32>();
+        let best_living = self.islands
+            .iter()
+            .flat_map(|i| i.agents.values())
+            .min_by(|a1, a2| a1.fitness.partial_cmp(&a2.fitness).unwrap())
+            .unwrap()
+            .fitness;
+
+        let average_fitness = self.islands
+            .iter()
+            .flat_map(|i| i.agents.values())
+            .map(|a| a.fitness)
+            .sum::<f64>() / agents_amount as f64;
+
+        let average_energy = self.islands
+            .iter()
+            .flat_map(|i| i.agents.values())
+            .map(|a| a.energy)
+            .sum::<u32>() as f64 / agents_amount as f64;
+
+        self.logs.push(format!("{},{},{},{},{},{},{}\n", timestamp, historical_best, agents_amount, energy_sum, best_living, average_fitness, average_energy))
+    }
+
     fn migrate_agents(&mut self) {
         let mut rng = thread_rng();
         let len = self.islands.len();
@@ -316,11 +399,10 @@ impl System {
     }
 
     pub fn run(&mut self) -> [f64; RASTRIGIN_DIMS] {
-        for i in 0..10_000 {
+        let start = Instant::now();
+        for i in (0..self.steps).progress() {
             for island in self.islands.iter_mut() {
                 island.step(
-                    self.reproduction_level,
-                    self.combat_level,
                     self.energy_reproduction_percent,
                     self.energy_combat,
                 );
@@ -332,7 +414,19 @@ impl System {
                 }
                 self.migrate_agents();
             }
+
+            if i % self.log_steps == 0 {
+                self.log(start);
+            }
         }
+
+        let mut f = File::create("outputs.csv").unwrap();
+        f.write_all(
+            self.logs
+                .iter()
+                .fold(String::new(), |mut s, i| {s.push_str(i); s})
+                .as_bytes()
+        ).unwrap();
 
         self.best_sol()
     }
@@ -340,35 +434,40 @@ impl System {
 
 pub struct SystemBuilder {
     island_amount: usize,
+    steps: u32,
     agents_per_island: usize,
     agent_energy: u32,
-    reproduction_level: u32,
-    combat_level: u32,
     energy_passed_on_reproduction: f64,
     energy_combat: u32,
     migration_steps: u32,
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
+    log_steps: u32,
 }
 
 impl SystemBuilder {
     pub fn new() -> SystemBuilder {
         SystemBuilder {
-            island_amount: 10,
+            island_amount: 5,
             agents_per_island: 100,
+            steps: 10_000,
             agent_energy: 10,
-            reproduction_level: 20,
-            combat_level: 15,
             energy_passed_on_reproduction: 0.25,
             energy_combat: 2,
             migration_steps: 50,
             migrations_best_amount: 10,
             migrations_elite_amount: 5,
+            log_steps: 100,
         }
     }
 
     pub fn island_amount(mut self, amount: usize) -> Self {
         self.island_amount = amount;
+        self
+    }
+
+    pub fn steps(mut self, amount: u32) -> Self {
+        self.steps = amount;
         self
     }
 
@@ -382,16 +481,6 @@ impl SystemBuilder {
         self
     }
 
-    pub fn reproduction_level(mut self, amount: u32) -> Self {
-        self.reproduction_level = amount;
-        self
-    }
-
-    pub fn combat_level(mut self, amount: u32) -> Self {
-        self.combat_level = amount;
-        self
-    }
-
     pub fn energy_passed_on_reproduction(mut self, ratio: f64) -> Self {
         assert!(0.0 < ratio && ratio <= 1.0);
         self.energy_passed_on_reproduction = ratio;
@@ -400,6 +489,16 @@ impl SystemBuilder {
 
     pub fn combat_energy(mut self, amount: u32) -> Self {
         self.energy_combat = amount;
+        self
+    }
+
+    pub fn migration_steps(mut self, amount: u32) -> Self {
+        self.migration_steps = amount;
+        self
+    }
+
+    pub fn log_steps(mut self, amount: u32) -> Self {
+        self.log_steps = amount;
         self
     }
 
@@ -418,15 +517,20 @@ impl SystemBuilder {
             .map(|id| Island::new(self.agents_per_island, self.agent_energy, id))
             .collect();
 
+        let logs = vec![
+            "timestamp,historical best,agents amount,energy sum,best living,average fitness,average energy\n".to_string()
+        ];
+
         System {
             islands,
-            reproduction_level: self.reproduction_level,
-            combat_level: self.combat_level,
+            steps:self.steps,
             energy_reproduction_percent: self.energy_passed_on_reproduction,
             energy_combat: self.energy_combat,
             migration_steps: self.migration_steps,
             migrations_best_amount: self.migrations_best_amount,
             migrations_elite_amount: self.migrations_elite_amount,
+            logs,
+            log_steps: self.log_steps,
         }
     }
 }
@@ -440,4 +544,5 @@ mod tests {
     fn rastrigin_min_test() {
         assert_eq!(rastrigin(&[0.0, 0.0]), 0.0)
     }
+
 }
