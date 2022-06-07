@@ -27,14 +27,6 @@ struct Agent {
 }
 
 impl Agent {
-    fn new(starting_energy: u32, id: AgentId) -> Agent {
-        Agent {
-            genes: [0.0; RASTRIGIN_DIMS],
-            energy: starting_energy,
-            id,
-        }
-    }
-
     fn rand_agent(starting_energy: u32, id: AgentId) -> Agent {
         let mut genes = [0.0; RASTRIGIN_DIMS];
         for gene in genes.iter_mut() {
@@ -43,7 +35,7 @@ impl Agent {
         Agent {
             genes,
             energy: starting_energy,
-            id: id,
+            id,
         }
     }
 
@@ -59,8 +51,16 @@ impl Agent {
         self.energy -= par1_en;
         other.energy -= par2_en;
 
-        let mut ch1 = Agent::new((par1_en + par2_en) / 2, ch1_id);
-        let mut ch2 = Agent::new((par1_en + par2_en + 1) / 2, ch2_id);
+        let mut ch1 = Agent {
+            energy: (par1_en + par2_en) / 2,
+            id: ch1_id,
+            genes: [0.0, 0.0],
+        };
+        let mut ch2 = Agent {
+            energy: (par1_en + par2_en + 1) / 2,
+            id: ch2_id,
+            genes: [0.0, 0.0],
+        };
 
         let cut_point = thread_rng().gen_range(0..self.genes.len());
         for i in 0..cut_point {
@@ -135,7 +135,7 @@ impl Island {
             .map(|a_id| {
                 (
                     AgentId(id, a_id),
-                    Agent::new(agent_energy, AgentId(id, a_id)),
+                    Agent::rand_agent(agent_energy, AgentId(id, a_id)),
                 )
             })
             .collect();
@@ -263,6 +263,8 @@ pub struct System {
     energy_reproduction_percent: f64,
     energy_combat: u32,
     migration_steps: u32,
+    migrations_best_amount: usize,
+    migrations_elite_amount: usize,
 }
 
 impl System {
@@ -303,7 +305,7 @@ impl System {
     }
 
     pub fn run(&mut self) -> [f64; RASTRIGIN_DIMS] {
-        for _ in 0..10_000 {
+        for i in 0..10_000 {
             for island in self.islands.iter_mut() {
                 island.step(
                     self.reproduction_level,
@@ -312,7 +314,13 @@ impl System {
                     self.energy_combat,
                 );
             }
-            self.migrate_agents();
+
+            if i % self.migration_steps == 0 {
+                for island in self.islands.iter_mut() {
+                    island.step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
+                }
+                self.migrate_agents();
+            }
         }
 
         self.best_sol()
@@ -328,6 +336,8 @@ pub struct SystemBuilder {
     energy_passed_on_reproduction: f64,
     energy_combat: u32,
     migration_steps: u32,
+    migrations_best_amount: usize,
+    migrations_elite_amount: usize,
 }
 
 impl SystemBuilder {
@@ -341,6 +351,8 @@ impl SystemBuilder {
             energy_passed_on_reproduction: 0.25,
             energy_combat: 2,
             migration_steps: 50,
+            migrations_best_amount: 10,
+            migrations_elite_amount: 5,
         }
     }
 
@@ -380,6 +392,16 @@ impl SystemBuilder {
         self
     }
 
+    pub fn migrations_best_amount(mut self, amount: usize) -> Self {
+        self.migrations_best_amount = amount;
+        self
+    }
+
+    pub fn migrations_elite_amount(mut self, amount: usize) -> Self {
+        self.migrations_elite_amount = amount;
+        self
+    }
+
     pub fn build(self) -> System {
         let islands = (0..self.island_amount)
             .map(|id| Island::new(self.agents_per_island, self.agent_energy, id))
@@ -392,88 +414,16 @@ impl SystemBuilder {
             energy_reproduction_percent: self.energy_passed_on_reproduction,
             energy_combat: self.energy_combat,
             migration_steps: self.migration_steps,
+            migrations_best_amount: self.migrations_best_amount,
+            migrations_elite_amount: self.migrations_elite_amount,
         }
     }
 }
 
-// O(1): insert(), remove(), contains(), get_random()
-struct HashSetGetRandom<T> {
-    map: HashMap<T, usize>,
-    vec: Vec<T>,
-}
-
-#[allow(dead_code)]
-impl<T: Clone + Eq + Hash> HashSetGetRandom<T> {
-    fn new() -> Self {
-        Self {
-            map: HashMap::new(),
-            vec: Vec::new(),
-        }
-    }
-
-    fn insert(&mut self, elem: T) -> bool {
-        if !self.map.contains_key(&elem) {
-            self.map.insert(elem.clone(), self.vec.len());
-            self.vec.push(elem);
-            return true;
-        }
-        false
-    }
-
-    fn remove(&mut self, elem: &T) -> bool {
-        match self.map.remove(elem) {
-            Some(index) => {
-                self.vec.swap_remove(index);
-                if index < self.vec.len() {
-                    self.map.insert(self.vec[index].clone(), index);
-                }
-                true
-            }
-            None => false,
-        }
-    }
-
-    fn contains(&self, elem: &T) -> bool {
-        self.map.contains_key(elem)
-    }
-
-    fn is_empty(&self) -> bool {
-        self.vec.is_empty()
-    }
-
-    fn len(&self) -> usize {
-        self.vec.len()
-    }
-
-    fn get_random(&self) -> &T {
-        &self.vec[thread_rng().gen_range(0..self.vec.len())]
-    }
-
-    fn get_random_mut(&mut self) -> &mut T {
-        let rand_idx = thread_rng().gen_range(0..self.vec.len());
-        &mut self.vec[rand_idx]
-    }
-
-    fn remove_random(&mut self) -> T {
-        let el = self.get_random().clone(); // todo: nie wiem jak inaczej niż clone
-        self.remove(&el);
-        el
-    }
-}
-
-impl<T: Clone + Eq + Hash> FromIterator<T> for HashSetGetRandom<T> {
-    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
-        let mut c = HashSetGetRandom::new();
-        for i in iter {
-            c.insert(i);
-        }
-        c
-    }
-}
 
 #[cfg(test)]
 mod tests {
-    use crate::{rastrigin, HashSetGetRandom};
+    use crate::{rastrigin};
 
     #[test]
     fn rastrigin_min_test() {
@@ -486,61 +436,4 @@ mod tests {
     //     let sol = system.run();
     //     println!("[{}, {}]", sol[0], sol[1]);
     // }
-
-    #[test]
-    fn hash_set_get_random() {
-        let mut c: HashSetGetRandom<_> = [2, 1, 3, 7].into_iter().collect();
-
-        assert!(c.contains(&1));
-        assert!(!c.contains(&2137));
-        assert!(c.remove(&3));
-        assert!(c.contains(&2));
-        assert!(!c.contains(&3));
-        assert!(c.insert(3));
-        assert!(c.contains(&3));
-        assert!(!c.remove(&2137));
-
-        // test if map gets updated when removing element
-        c.remove(&1);
-        c.remove(&7);
-        assert!(!c.contains(&7));
-
-        // test is_empty()
-        assert!(!c.is_empty());
-        for el in [2, 1, 3, 7] {
-            c.remove(&el);
-        }
-        assert!(c.is_empty());
-
-        // test remove_random()
-        c = [2, 1, 3, 7].into_iter().collect();
-        assert!(!c.is_empty());
-        let mut el = c.remove_random();
-        for _ in 0..3 {
-            let new_el = c.remove_random();
-            assert_ne!(el, new_el);
-            el = new_el;
-        }
-        assert!(c.is_empty());
-    }
 }
-
-//  Energy is transferred between agents in the process of evaluation.
-//When the agent finds out that one of its neighbours (e.g. randomly chosen),
-//has lower fitness, it takes a part of its neighbour’s energy,
-//otherwise it passes part of its own energy to the evaluated neighbour.
-//  The level of life energy triggers the following actions:
-//- Reproduction (energy > reproduction level)
-//- Death (energy < death level)
-//- Migration (energy > migration level)
-// Each action is attempted randomly with a certain probability,
-// and it is performed only when their basic preconditions are met
-// (e.g. an agent may attempt to perform the action of reproduction,
-// but it will reproduce only if its energy rises above certain level
-// and it meets an appropriate neighbour).
-
-//evaluation of agents, or more generally, the way a phenotype
-// (behaviour of the agent) is developed from a genotype (inherited information)
-// depends on its interaction with the environment, like in co- evolutionary algorithms.
-//???? o to trzeba zapytac
-//
