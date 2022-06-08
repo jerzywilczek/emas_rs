@@ -5,30 +5,48 @@ use std::f64::consts::PI;
 use std::fs::File;
 use std::hash::Hash;
 use std::io::Write;
+use std::marker::PhantomData;
 use std::time::Instant;
 use indicatif::ProgressIterator;
 
 pub const RASTRIGIN_DIMS: usize = 2;
 
-pub fn rastrigin(values: &[f64; RASTRIGIN_DIMS]) -> f64 {
-    let a: f64 = 10.0;
-    let mut fx = a * RASTRIGIN_DIMS as f64;
-    fx += values
-        .iter()
-        .map(|xi| xi.powf(2.0) - a * (2.0 * PI * xi).cos())
-        .sum::<f64>();
-    fx
+pub struct RastriginFitness {}
+
+impl FitnessFn for RastriginFitness {
+    fn call(args: &[f64; 2]) -> f64 {
+        let a: f64 = 10.0;
+        let mut fx = a * RASTRIGIN_DIMS as f64;
+        fx += args
+            .iter()
+            .map(|xi| xi.powf(2.0) - a * (2.0 * PI * xi).cos())
+            .sum::<f64>();
+        fx
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
 
-#[derive(Debug, Clone)]
-struct Agent {
+#[derive(Debug)]
+struct Agent<F: FitnessFn> {
     genes: [f64; RASTRIGIN_DIMS],
     energy: u32,
     id: AgentId,
     fitness: f64,
+    f_phantom: PhantomData<F>,
+}
+
+impl<F: FitnessFn> Clone for Agent<F> {
+    fn clone(&self) -> Self {
+        Agent {
+            genes: self.genes.clone(),
+            energy: self.energy,
+            id: self.id,
+            fitness: self.fitness,
+            f_phantom: PhantomData::default(),
+        }
+    }
 }
 
 
@@ -57,8 +75,8 @@ fn action_take_chance(energy: u32) -> ActionProbability {
 }
 //TODO: Usunac wymagane poziomy energii z systemu, bo to ta funkcja bedzie ogarniala[reprrodukcja i rozmnazanko]
 
-impl Agent {
-    fn rand_agent(starting_energy: u32, id: AgentId) -> Agent {
+impl<F: FitnessFn> Agent<F> {
+    fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<F> {
         let mut genes = [0.0; RASTRIGIN_DIMS];
         for gene in genes.iter_mut() {
             *gene = random::<f64>() * 10.24 - 5.12;
@@ -67,17 +85,18 @@ impl Agent {
             genes,
             energy: starting_energy,
             id,
-            fitness: rastrigin(&genes),
+            fitness: F::call(&genes),
+            f_phantom: PhantomData::default(),
         }
     }
 
     fn reproduce(
         &mut self,
-        other: &mut Agent,
+        other: &mut Agent<F>,
         energy_passed_percent: f64,
         ch1_id: AgentId,
         ch2_id: AgentId,
-    ) -> (Agent, Agent) {
+    ) -> (Agent<F>, Agent<F>) {
         let par1_en = (energy_passed_percent * self.energy as f64) as u32;
         let par2_en = (energy_passed_percent * other.energy as f64) as u32;
         self.energy -= par1_en;
@@ -88,12 +107,14 @@ impl Agent {
             id: ch1_id,
             genes: [0.0, 0.0],
             fitness: 0.0,
+            f_phantom: PhantomData::default(),
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
             id: ch2_id,
             genes: [0.0, 0.0],
             fitness: 0.0,
+            f_phantom: PhantomData::default(),
         };
 
         let cut_point = thread_rng().gen_range(0..self.genes.len());
@@ -109,8 +130,8 @@ impl Agent {
         ch1.mutate();
         ch2.mutate();
 
-        ch1.fitness = rastrigin(&ch1.genes);
-        ch2.fitness = rastrigin(&ch2.genes);
+        ch1.fitness = F::call(&ch1.genes);
+        ch2.fitness = F::call(&ch2.genes);
 
 
         (ch1, ch2)
@@ -132,7 +153,7 @@ impl Agent {
         }
     }
 
-    fn combat(&mut self, other: &mut Agent, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
+    fn combat(&mut self, other: &mut Agent<F>, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
         let (winner, looser) =
             if thread_rng().gen::<f64>() < win_chance_fn(self.fitness, other.fitness) {
                 (self, other)
@@ -168,13 +189,13 @@ impl Agent {
     }
 }
 
-impl PartialEq for Agent {
+impl<F: FitnessFn> PartialEq for Agent<F> {
     fn eq(&self, other: &Self) -> bool {
         self.id.0 == other.id.0 && self.id.1 == other.id.1
     }
 }
 
-impl Eq for Agent {}
+impl<F: FitnessFn> Eq for Agent<F> {}
 
 enum Action {
     Combat,
@@ -182,17 +203,18 @@ enum Action {
 }
 
 #[derive(Debug)]
-struct Island {
+struct Island<F: FitnessFn> {
     _id: usize,
-    agents: HashMap<AgentId, Agent>,
-    migration_queue: Vec<Agent>,
+    agents: HashMap<AgentId, Agent<F>>,
+    migration_queue: Vec<Agent<F>>,
     last_agent_id: usize,
-    historical_best: Agent,
+    historical_best: Agent<F>,
+    f_phantom: PhantomData<F>,
 }
 
-impl Island {
-    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island {
-        let agents: HashMap<AgentId, Agent> = (0..agents_amount)
+impl<F: FitnessFn> Island<F> {
+    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<F> {
+        let agents: HashMap<AgentId, Agent<F>> = (0..agents_amount)
             .map(|a_id| {
                 (
                     AgentId(id, a_id),
@@ -208,6 +230,7 @@ impl Island {
             migration_queue: Vec::new(),
             last_agent_id: agents_amount - 1,
             historical_best,
+            f_phantom: PhantomData::default(),
         }
     }
 
@@ -216,11 +239,11 @@ impl Island {
         self.last_agent_id
     }
 
-    fn get_pair_mut(&mut self, a1_id: &AgentId, a2_id: &AgentId) -> (&mut Agent, &mut Agent) {
+    fn get_pair_mut(&mut self, a1_id: &AgentId, a2_id: &AgentId) -> (&mut Agent<F>, &mut Agent<F>) {
         assert_ne!(a1_id, a2_id);
 
-        let a1 = self.agents.get_mut(&a1_id).unwrap() as *mut Agent;
-        let a2 = self.agents.get_mut(&a2_id).unwrap() as *mut Agent;
+        let a1 = self.agents.get_mut(&a1_id).unwrap() as *mut Agent<F>;
+        let a2 = self.agents.get_mut(&a2_id).unwrap() as *mut Agent<F>;
         unsafe { (&mut *a1, &mut *a2) }
     }
 
@@ -313,9 +336,13 @@ impl Island {
     }
 }
 
+pub trait FitnessFn {
+    fn call(args: &[f64; 2]) -> f64;
+}
+
 #[derive(Debug)]
-pub struct System {
-    islands: Vec<Island>,
+pub struct System<F: FitnessFn> {
+    islands: Vec<Island<F>>,
     steps: u32,
     energy_reproduction_percent: f64,
     energy_combat: u32,
@@ -324,12 +351,13 @@ pub struct System {
     migrations_elite_amount: usize,
     logs: Vec<String>,
     log_steps: u32,
+    f_phantom: PhantomData<F>,
 }
 
-impl System {
+impl<F: FitnessFn> System<F> {
     fn log(&mut self, start: Instant) {
         let timestamp = start.elapsed().as_secs_f32();
-        let historical_best = rastrigin(&self.best_sol());
+        let historical_best = F::call(&self.best_sol());
         let agents_amount = self.islands
             .iter()
             .map(|i| i.agents.len())
@@ -432,7 +460,7 @@ impl System {
     }
 }
 
-pub struct SystemBuilder {
+pub struct SystemBuilder<F: FitnessFn> {
     island_amount: usize,
     steps: u32,
     agents_per_island: usize,
@@ -443,10 +471,11 @@ pub struct SystemBuilder {
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     log_steps: u32,
+    f_phantom: PhantomData<F>
 }
 
-impl SystemBuilder {
-    pub fn new() -> SystemBuilder {
+impl<F: FitnessFn> SystemBuilder<F> {
+    pub fn new() -> SystemBuilder<F> {
         SystemBuilder {
             island_amount: 5,
             agents_per_island: 100,
@@ -458,6 +487,7 @@ impl SystemBuilder {
             migrations_best_amount: 10,
             migrations_elite_amount: 5,
             log_steps: 100,
+            f_phantom: PhantomData::default(),
         }
     }
 
@@ -512,7 +542,7 @@ impl SystemBuilder {
         self
     }
 
-    pub fn build(self) -> System {
+    pub fn build(self) -> System<F> {
         let islands = (0..self.island_amount)
             .map(|id| Island::new(self.agents_per_island, self.agent_energy, id))
             .collect();
@@ -531,6 +561,7 @@ impl SystemBuilder {
             migrations_elite_amount: self.migrations_elite_amount,
             logs,
             log_steps: self.log_steps,
+            f_phantom: PhantomData::default(),
         }
     }
 }
@@ -538,11 +569,11 @@ impl SystemBuilder {
 
 #[cfg(test)]
 mod tests {
-    use crate::{rastrigin};
+    use crate::{RastriginFitness, FitnessFn};
 
     #[test]
     fn rastrigin_min_test() {
-        assert_eq!(rastrigin(&[0.0, 0.0]), 0.0)
+        assert_eq!(RastriginFitness::call(&[0.0, 0.0]), 0.0)
     }
 
 }
