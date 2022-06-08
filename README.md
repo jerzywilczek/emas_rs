@@ -1,9 +1,9 @@
 # Specyfikacja wymagań
 ## Wymagania funkcjonalne
 ### Implementacja algorytmu EMAS
-Należy zaimplementować klasyczną wersję algorytmu EMAS:
+Należy zaimplementować klasyczną wersję algorytmu EMAS
 #### Populacja
-   * agenty są porozrzucane po wyspach
+   * agenty są porozrzucane na wyspach
    * wyspy układają się zawsze w topologię grafu pełnego
    * energia wśród populacji jest stała w każdym kroku czasowym
 #### Agenty
@@ -18,18 +18,18 @@ Należy zaimplementować klasyczną wersję algorytmu EMAS:
    * agenty mogą się reprodukować pod warunkiem, że ich energia jest wyższa od progu reprodukcji
    * jej wynikiem jest powstanie dwóch nowych osobników o cechach zbliżonych do rodziców
    * genotyp dzieci określamy na podstawie:
-       * funkcji rekombinacji — skomponowania nowego genotypu na podstawie genotypu rodziców
-       * funkcji mutacji — zmutowania genotypu powstałego w wyniku rekombinacji
+       * funkcji rekombinacji – skomponowania nowego genotypu na podstawie genotypu rodziców
+       * funkcji mutacji – zmutowania genotypu powstałego w wyniku rekombinacji
    * agenty będące rodzicami tracą pewną część bądź wartość swej energii na rzecz dzieci, które dzielą się tą energią po równo
-#### Migracja 
+#### Migracja
    * odbywa się co ustaloną liczbę kroków czasowych
    * wybieramy grupę X osobników o najlepszym przystosowaniu na wyspie, a następnie wybieramy spośród nich losowo Y <= X, które zostają po równo rozdzielone pomiędzy pozostałe wyspy
 #### Śmierć 
    * umierają agenty, których energia nie przekracza progu śmierci
    * powyższy warunek sprawdzamy po każdym kroku czasowym związanym z reprodukcją i walką
 #### Kroki czasowe
-   * klasyczny -- odbywa się walka i reprodukcja, a następnie czyszczenie wyspy ze zmarłych osobników
-   * migracja -- wykonujemy operację migracji
+   * klasyczny – odbywa się walka i reprodukcja, a następnie czyszczenie wyspy ze zmarłych osobników
+   * migracja – wykonujemy operację migracji
    * wyznaczamy co ile kroków ma się odbywać migracja, w pozostałych wykonujemy krok klasyczny
 #### Funkcja celu
    * funkcja, której argumentem jest wektor
