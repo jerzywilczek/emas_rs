@@ -36,11 +36,7 @@ impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
 }
 
 
-struct ActionProbability {
-    combat: f64,
-    reproduce: f64,
-}
-
+struct ReproductionChance(f64);
 
 fn combat_win_chance(this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
     if this_agent_fitness < other_agent_fitness {
@@ -50,14 +46,14 @@ fn combat_win_chance(this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
 }
 
 
-fn action_take_chance(energy: u32) -> ActionProbability {
+fn reproduction_chance(energy: u32) -> ReproductionChance {
     if energy < 25 {
-        return ActionProbability { combat: 1.0, reproduce: 0.0 };
+        return ReproductionChance(0.0);
     }
     if energy < 50 {
-        return ActionProbability { combat: 0.75, reproduce: 0.25 };
+        return ReproductionChance(0.25);
     }
-    ActionProbability { combat: 0.0, reproduce: 1.0 }
+    ReproductionChance(1.0)
 }
 
 impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
@@ -151,13 +147,12 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
         winner.energy += energy;
     }
 
-    fn pick_action(&self, action_probability: ActionProbability) -> Action {
-        assert_eq!(action_probability.reproduce + action_probability.combat, 1.0);
-
-        if thread_rng().gen::<f64>() < action_probability.combat {
-            return Action::Combat;
-        } else {
+    fn pick_action(&self, reproduction_chance: ReproductionChance) -> Action {
+        let ReproductionChance(reproduction_chance) = reproduction_chance;
+        if thread_rng().gen::<f64>() < reproduction_chance {
             Action::Reproduce
+        } else {
+            Action::Combat
         }
     }
 }
@@ -229,7 +224,7 @@ impl<const N: usize, F: FitnessFn<N>> Island<N, F> {
         let mut to_combat = Vec::new();
 
         for (&id, agent) in self.agents.iter_mut() {
-            match agent.pick_action(action_take_chance(agent.energy)) {
+            match agent.pick_action(reproduction_chance(agent.energy)) {
                 Action::Reproduce => to_reproduction.push(id),
                 Action::Combat => to_combat.push(id),
             }
