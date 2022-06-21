@@ -59,7 +59,6 @@ fn action_take_chance(energy: u32) -> ActionProbability {
     }
     ActionProbability { combat: 0.0, reproduce: 1.0 }
 }
-//TODO: Usunac wymagane poziomy energii z systemu, bo to ta funkcja bedzie ogarniala[reprrodukcja i rozmnazanko]
 
 impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
     fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F> {
@@ -160,19 +159,6 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
         } else {
             Action::Reproduce
         }
-
-        // if self.energy >= combat_level {
-        //     if self.energy >= reproduction_level {
-        //         let mut rng = thread_rng();
-        //         return if rng.gen::<bool>() {
-        //             Action::Reproduce
-        //         } else {
-        //             Action::Combat
-        //         };
-        //     }
-        //     return Action::Combat;
-        // }
-        // Action::Idle
     }
 }
 
