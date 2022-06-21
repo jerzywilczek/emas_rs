@@ -7,7 +7,6 @@ use std::hash::Hash;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::time::Instant;
-use indicatif::ProgressIterator;
 use std::fs;
 
 pub const RASTRIGIN_DIMS: usize = 2;
@@ -438,7 +437,7 @@ impl<F: FitnessFn> System<F> {
         ).unwrap();
 
         let start = Instant::now();
-        for i in (0..self.steps).progress() {
+        for i in 0..self.steps {
             for island in self.islands.iter_mut() {
                 island.step(
                     self.energy_reproduction_percent,
@@ -454,7 +453,7 @@ impl<F: FitnessFn> System<F> {
             }
 
             if i % self.log_steps == 0 {
-                f.write_all(self.log(start).as_bytes());
+                f.write_all(self.log(start).as_bytes()).expect("Can't write logs to the log file");
             }
         }
 
