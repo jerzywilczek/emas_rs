@@ -1,29 +1,21 @@
 use rand::prelude::SliceRandom;
 use rand::{random, seq::IteratorRandom, thread_rng, Rng};
 use std::collections::HashMap;
-use std::f64::consts::PI;
 use std::fs::File;
 use std::hash::Hash;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::time::Instant;
 use std::fs;
+use fitness_functions::FitnessFn;
 
 pub const RASTRIGIN_DIMS: usize = 2;
 
-pub struct RastriginFitness {}
 
-impl FitnessFn for RastriginFitness {
-    fn call(args: &[f64; 2]) -> f64 {
-        let a: f64 = 10.0;
-        let mut fx = a * RASTRIGIN_DIMS as f64;
-        fx += args
-            .iter()
-            .map(|xi| xi.powf(2.0) - a * (2.0 * PI * xi).cos())
-            .sum::<f64>();
-        fx
-    }
-}
+
+pub mod fitness_functions;
+
+
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
@@ -336,9 +328,6 @@ impl<F: FitnessFn> Island<F> {
     }
 }
 
-pub trait FitnessFn {
-    fn call(args: &[f64; 2]) -> f64;
-}
 
 #[derive(Debug)]
 pub struct System<F: FitnessFn> {
@@ -568,13 +557,3 @@ impl<F: FitnessFn> SystemBuilder<F> {
 }
 
 
-#[cfg(test)]
-mod tests {
-    use crate::{RastriginFitness, FitnessFn};
-
-    #[test]
-    fn rastrigin_min_test() {
-        assert_eq!(RastriginFitness::call(&[0.0, 0.0]), 0.0)
-    }
-
-}
