@@ -38,7 +38,7 @@ impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
 }
 
 
-pub struct ReproductionChance(f64);
+pub struct ReproductionChance(pub f64);
 
 impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
     fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F> {
