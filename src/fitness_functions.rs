@@ -1,12 +1,15 @@
 use std::f64::consts::PI;
 
 pub trait FitnessFn<const N: usize> {
+    const DOMAIN: [(f64, f64); N];
     fn call(args: &[f64; N]) -> f64;
 }
 
 pub struct RastriginFitness<const N: usize> {}
 
 impl<const N: usize> FitnessFn<N> for RastriginFitness<N> {
+    const DOMAIN: [(f64, f64); N] = [(-5.12, 5.12); N];
+
     fn call(args: &[f64; N]) -> f64 {
         let a: f64 = 10.0;
         let mut fx = a * N as f64;

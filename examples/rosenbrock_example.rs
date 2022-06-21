@@ -8,6 +8,8 @@ use std::thread::sleep;
 struct RosenbrockFitness {}
 
 impl FitnessFn<2> for RosenbrockFitness {
+    const DOMAIN: [(f64, f64); 2] = [(-5.0, 5.0); 2];
+
     fn call(args: &[f64; 2]) -> f64 {
         let a: f64 = 1.0;
         let b: f64 = 100.0;

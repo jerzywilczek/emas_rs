@@ -64,8 +64,9 @@ fn action_take_chance(energy: u32) -> ActionProbability {
 impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
     fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F> {
         let mut genes = [0.0; N];
-        for gene in genes.iter_mut() {
-            *gene = random::<f64>() * 10.24 - 5.12;
+        for (gene, (d_min, d_max)) in genes.iter_mut().zip(F::DOMAIN) {
+            let domain_len = d_max - d_min;
+            *gene = random::<f64>() * domain_len - domain_len / 2.0;
         }
         Agent {
             genes,
@@ -126,14 +127,14 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
     fn mutate(&mut self) {
         let mut rng = thread_rng();
         let gene_mut_chance = 1.0;
-        let mutation_range = 5.12 / 10.0;
-        for i in 0..self.genes.len() {
+        for i in 0..N {
+            let mutation_range = (F::DOMAIN[i].1 - F::DOMAIN[i].0) / 20.0;
             if rng.gen::<f64>() < gene_mut_chance {
                 let mutation_value = rng.gen::<f64>() * mutation_range;
                 if rng.gen() {
-                    self.genes[i] = (self.genes[i] + mutation_value).min(5.12);
+                    self.genes[i] = (self.genes[i] + mutation_value).min(F::DOMAIN[i].1);
                 } else {
-                    self.genes[i] = (self.genes[i] - mutation_value).max(-5.12);
+                    self.genes[i] = (self.genes[i] - mutation_value).max(F::DOMAIN[i].0);
                 }
             }
         }
@@ -527,6 +528,12 @@ impl<const N: usize, F: FitnessFn<N>> SystemBuilder<N, F> {
     }
 
     pub fn build(self) -> System<N, F> {
+        for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
+            if d_min > d_max {
+                panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
+            }
+        }
+
         let islands = (0..self.island_amount)
             .map(|id| Island::new(self.agents_per_island, self.agent_energy, id))
             .collect();
