@@ -9,27 +9,21 @@ use std::time::Instant;
 use std::fs;
 use fitness_functions::FitnessFn;
 
-pub const RASTRIGIN_DIMS: usize = 2;
-
-
-
 pub mod fitness_functions;
-
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
 
 #[derive(Debug)]
-struct Agent<F: FitnessFn> {
-    genes: [f64; RASTRIGIN_DIMS],
+struct Agent<const N: usize, F: FitnessFn<N>> {
+    genes: [f64; N],
     energy: u32,
     id: AgentId,
     fitness: f64,
     f_phantom: PhantomData<F>,
 }
 
-impl<F: FitnessFn> Clone for Agent<F> {
+impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
     fn clone(&self) -> Self {
         Agent {
             genes: self.genes.clone(),
@@ -67,9 +61,9 @@ fn action_take_chance(energy: u32) -> ActionProbability {
 }
 //TODO: Usunac wymagane poziomy energii z systemu, bo to ta funkcja bedzie ogarniala[reprrodukcja i rozmnazanko]
 
-impl<F: FitnessFn> Agent<F> {
-    fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<F> {
-        let mut genes = [0.0; RASTRIGIN_DIMS];
+impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
+    fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F> {
+        let mut genes = [0.0; N];
         for gene in genes.iter_mut() {
             *gene = random::<f64>() * 10.24 - 5.12;
         }
@@ -84,11 +78,11 @@ impl<F: FitnessFn> Agent<F> {
 
     fn reproduce(
         &mut self,
-        other: &mut Agent<F>,
+        other: &mut Agent<N, F>,
         energy_passed_percent: f64,
         ch1_id: AgentId,
         ch2_id: AgentId,
-    ) -> (Agent<F>, Agent<F>) {
+    ) -> (Agent<N, F>, Agent<N, F>) {
         let par1_en = (energy_passed_percent * self.energy as f64) as u32;
         let par2_en = (energy_passed_percent * other.energy as f64) as u32;
         self.energy -= par1_en;
@@ -97,14 +91,14 @@ impl<F: FitnessFn> Agent<F> {
         let mut ch1 = Agent {
             energy: (par1_en + par2_en) / 2,
             id: ch1_id,
-            genes: [0.0, 0.0],
+            genes: [0.0; N],
             fitness: 0.0,
             f_phantom: PhantomData::default(),
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
             id: ch2_id,
-            genes: [0.0, 0.0],
+            genes: [0.0; N],
             fitness: 0.0,
             f_phantom: PhantomData::default(),
         };
@@ -145,7 +139,7 @@ impl<F: FitnessFn> Agent<F> {
         }
     }
 
-    fn combat(&mut self, other: &mut Agent<F>, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
+    fn combat(&mut self, other: &mut Agent<N, F>, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
         let (winner, looser) =
             if thread_rng().gen::<f64>() < win_chance_fn(self.fitness, other.fitness) {
                 (self, other)
@@ -181,13 +175,13 @@ impl<F: FitnessFn> Agent<F> {
     }
 }
 
-impl<F: FitnessFn> PartialEq for Agent<F> {
+impl<const N: usize, F: FitnessFn<N>> PartialEq for Agent<N, F> {
     fn eq(&self, other: &Self) -> bool {
         self.id.0 == other.id.0 && self.id.1 == other.id.1
     }
 }
 
-impl<F: FitnessFn> Eq for Agent<F> {}
+impl<const N: usize, F: FitnessFn<N>> Eq for Agent<N, F> {}
 
 enum Action {
     Combat,
@@ -195,18 +189,18 @@ enum Action {
 }
 
 #[derive(Debug)]
-struct Island<F: FitnessFn> {
+struct Island<const N: usize, F: FitnessFn<N>> {
     _id: usize,
-    agents: HashMap<AgentId, Agent<F>>,
-    migration_queue: Vec<Agent<F>>,
+    agents: HashMap<AgentId, Agent<N, F>>,
+    migration_queue: Vec<Agent<N, F>>,
     last_agent_id: usize,
-    historical_best: Agent<F>,
+    historical_best: Agent<N, F>,
     f_phantom: PhantomData<F>,
 }
 
-impl<F: FitnessFn> Island<F> {
-    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<F> {
-        let agents: HashMap<AgentId, Agent<F>> = (0..agents_amount)
+impl<const N: usize, F: FitnessFn<N>> Island<N, F> {
+    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<N, F> {
+        let agents: HashMap<AgentId, Agent<N, F>> = (0..agents_amount)
             .map(|a_id| {
                 (
                     AgentId(id, a_id),
@@ -231,11 +225,11 @@ impl<F: FitnessFn> Island<F> {
         self.last_agent_id
     }
 
-    fn get_pair_mut(&mut self, a1_id: &AgentId, a2_id: &AgentId) -> (&mut Agent<F>, &mut Agent<F>) {
+    fn get_pair_mut(&mut self, a1_id: &AgentId, a2_id: &AgentId) -> (&mut Agent<N, F>, &mut Agent<N, F>) {
         assert_ne!(a1_id, a2_id);
 
-        let a1 = self.agents.get_mut(&a1_id).unwrap() as *mut Agent<F>;
-        let a2 = self.agents.get_mut(&a2_id).unwrap() as *mut Agent<F>;
+        let a1 = self.agents.get_mut(&a1_id).unwrap() as *mut Agent<N, F>;
+        let a2 = self.agents.get_mut(&a2_id).unwrap() as *mut Agent<N, F>;
         unsafe { (&mut *a1, &mut *a2) }
     }
 
@@ -330,8 +324,8 @@ impl<F: FitnessFn> Island<F> {
 
 
 #[derive(Debug)]
-pub struct System<F: FitnessFn> {
-    islands: Vec<Island<F>>,
+pub struct System<const N: usize, F: FitnessFn<N>> {
+    islands: Vec<Island<N, F>>,
     steps: u32,
     energy_reproduction_percent: f64,
     energy_combat: u32,
@@ -343,7 +337,7 @@ pub struct System<F: FitnessFn> {
     f_phantom: PhantomData<F>,
 }
 
-impl<F: FitnessFn> System<F> {
+impl<const N: usize, F: FitnessFn<N>> System<N, F> {
     fn log(&mut self, start: Instant) -> String {
         let timestamp = start.elapsed().as_secs_f32();
         let historical_best = F::call(&self.best_sol());
@@ -400,7 +394,7 @@ impl<F: FitnessFn> System<F> {
         }
     }
 
-    pub fn best_sol(&self) -> [f64; RASTRIGIN_DIMS] {
+    pub fn best_sol(&self) -> [f64; N] {
         self.islands
             .iter()
             .min_by(|island1, island2| {
@@ -415,7 +409,7 @@ impl<F: FitnessFn> System<F> {
             .genes
     }
 
-    pub fn run(&mut self) -> [f64; RASTRIGIN_DIMS] {
+    pub fn run(&mut self) -> [f64; N] {
         fs::remove_file("outputs.csv").unwrap();
         let mut f = File::create("outputs.csv").unwrap();
         f.write_all(
@@ -450,7 +444,7 @@ impl<F: FitnessFn> System<F> {
     }
 }
 
-pub struct SystemBuilder<F: FitnessFn> {
+pub struct SystemBuilder<const N: usize, F: FitnessFn<N>> {
     island_amount: usize,
     steps: u32,
     agents_per_island: usize,
@@ -464,8 +458,8 @@ pub struct SystemBuilder<F: FitnessFn> {
     f_phantom: PhantomData<F>
 }
 
-impl<F: FitnessFn> SystemBuilder<F> {
-    pub fn new() -> SystemBuilder<F> {
+impl<const N: usize, F: FitnessFn<N>> SystemBuilder<N, F> {
+    pub fn new() -> SystemBuilder<N, F> {
         SystemBuilder {
             island_amount: 5,
             agents_per_island: 100,
@@ -532,7 +526,7 @@ impl<F: FitnessFn> SystemBuilder<F> {
         self
     }
 
-    pub fn build(self) -> System<F> {
+    pub fn build(self) -> System<N, F> {
         let islands = (0..self.island_amount)
             .map(|id| Island::new(self.agents_per_island, self.agent_energy, id))
             .collect();
