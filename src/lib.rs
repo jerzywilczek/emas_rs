@@ -8,6 +8,7 @@ use std::io::Write;
 use std::marker::PhantomData;
 use std::time::Instant;
 use indicatif::ProgressIterator;
+use std::fs;
 
 pub const RASTRIGIN_DIMS: usize = 2;
 
@@ -355,7 +356,7 @@ pub struct System<F: FitnessFn> {
 }
 
 impl<F: FitnessFn> System<F> {
-    fn log(&mut self, start: Instant) {
+    fn log(&mut self, start: Instant) -> String {
         let timestamp = start.elapsed().as_secs_f32();
         let historical_best = F::call(&self.best_sol());
         let agents_amount = self.islands
@@ -387,7 +388,7 @@ impl<F: FitnessFn> System<F> {
             .map(|a| a.energy)
             .sum::<u32>() as f64 / agents_amount as f64;
 
-        self.logs.push(format!("{},{},{},{},{},{},{}\n", timestamp, historical_best, agents_amount, energy_sum, best_living, average_fitness, average_energy))
+        format!("{},{},{},{},{},{},{}\n", timestamp, historical_best, agents_amount, energy_sum, best_living, average_fitness, average_energy)
     }
 
     fn migrate_agents(&mut self) {
@@ -427,6 +428,15 @@ impl<F: FitnessFn> System<F> {
     }
 
     pub fn run(&mut self) -> [f64; RASTRIGIN_DIMS] {
+        fs::remove_file("outputs.csv").unwrap();
+        let mut f = File::create("outputs.csv").unwrap();
+        f.write_all(
+            self.logs
+                .iter()
+                .fold(String::new(), |mut s, i| {s.push_str(i); s})
+                .as_bytes()
+        ).unwrap();
+
         let start = Instant::now();
         for i in (0..self.steps).progress() {
             for island in self.islands.iter_mut() {
@@ -444,17 +454,9 @@ impl<F: FitnessFn> System<F> {
             }
 
             if i % self.log_steps == 0 {
-                self.log(start);
+                f.write_all(self.log(start).as_bytes());
             }
         }
-
-        let mut f = File::create("outputs.csv").unwrap();
-        f.write_all(
-            self.logs
-                .iter()
-                .fold(String::new(), |mut s, i| {s.push_str(i); s})
-                .as_bytes()
-        ).unwrap();
 
         self.best_sol()
     }
