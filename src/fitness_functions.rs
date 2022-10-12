@@ -23,11 +23,10 @@ impl<const N: usize> FitnessFn<N> for RastriginFitness<N> {
 
 #[cfg(test)]
 mod tests {
-    use crate::fitness_functions::{RastriginFitness, FitnessFn};
+    use crate::fitness_functions::{FitnessFn, RastriginFitness};
 
     #[test]
     fn rastrigin_min_test() {
         assert_eq!(RastriginFitness::<2>::call(&[0.0, 0.0]), 0.0)
     }
-
 }

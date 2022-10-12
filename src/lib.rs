@@ -1,17 +1,17 @@
+use conf_functions::*;
+use fitness_functions::FitnessFn;
 use rand::prelude::SliceRandom;
 use rand::{random, seq::IteratorRandom, thread_rng, Rng};
 use std::collections::HashMap;
+use std::fs;
 use std::fs::File;
 use std::hash::Hash;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::time::Instant;
-use std::fs;
-use fitness_functions::FitnessFn;
-use conf_functions::*;
 
-pub mod fitness_functions;
 pub mod conf_functions;
+pub mod fitness_functions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
@@ -28,7 +28,7 @@ struct Agent<const N: usize, F: FitnessFn<N>> {
 impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
     fn clone(&self) -> Self {
         Agent {
-            genes: self.genes.clone(),
+            genes: self.genes,
             energy: self.energy,
             id: self.id,
             fitness: self.fitness,
@@ -36,7 +36,6 @@ impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
         }
     }
 }
-
 
 pub struct ReproductionChance(pub f64);
 
@@ -99,7 +98,6 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
         ch1.fitness = F::call(&ch1.genes);
         ch2.fitness = F::call(&ch2.genes);
 
-
         (ch1, ch2)
     }
 
@@ -156,10 +154,10 @@ enum Action {
 
 #[derive(Debug)]
 struct Island<const N: usize, F, CF, RF>
-    where
-        F: FitnessFn<N>,
-        CF: CombatWinChanceFn,
-        RF: ReproductionChanceFn
+where
+    F: FitnessFn<N>,
+    CF: CombatWinChanceFn,
+    RF: ReproductionChanceFn,
 {
     _id: usize,
     agents: HashMap<AgentId, Agent<N, F>>,
@@ -172,10 +170,10 @@ struct Island<const N: usize, F, CF, RF>
 }
 
 impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
-    where
-        F: FitnessFn<N>,
-        CF: CombatWinChanceFn,
-        RF: ReproductionChanceFn
+where
+    F: FitnessFn<N>,
+    CF: CombatWinChanceFn,
+    RF: ReproductionChanceFn,
 {
     fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<N, F, CF, RF> {
         let agents: HashMap<AgentId, Agent<N, F>> = (0..agents_amount)
@@ -205,19 +203,19 @@ impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
         self.last_agent_id
     }
 
-    fn get_pair_mut(&mut self, a1_id: &AgentId, a2_id: &AgentId) -> (&mut Agent<N, F>, &mut Agent<N, F>) {
+    fn get_pair_mut(
+        &mut self,
+        a1_id: &AgentId,
+        a2_id: &AgentId,
+    ) -> (&mut Agent<N, F>, &mut Agent<N, F>) {
         assert_ne!(a1_id, a2_id);
 
-        let a1 = self.agents.get_mut(&a1_id).unwrap() as *mut Agent<N, F>;
-        let a2 = self.agents.get_mut(&a2_id).unwrap() as *mut Agent<N, F>;
+        let a1 = self.agents.get_mut(a1_id).unwrap() as *mut Agent<N, F>;
+        let a2 = self.agents.get_mut(a2_id).unwrap() as *mut Agent<N, F>;
         unsafe { (&mut *a1, &mut *a2) }
     }
 
-    fn step(
-        &mut self,
-        energy_reproduction_percent: f64,
-        energy_combat: u32,
-    ) {
+    fn step(&mut self, energy_reproduction_percent: f64, energy_combat: u32) {
         let mut to_reproduction = Vec::new();
         let mut to_combat = Vec::new();
 
@@ -244,13 +242,7 @@ impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
 
             let (a1, a2) = self.get_pair_mut(&a1_id, &a2_id);
 
-
-            let offspring = a1.reproduce(
-                a2,
-                energy_passed_percent,
-                ch1_id.clone(),
-                ch2_id.clone(),
-            );
+            let offspring = a1.reproduce(a2, energy_passed_percent, ch1_id, ch2_id);
 
             if offspring.0.fitness < self.historical_best.fitness {
                 self.historical_best = offspring.0.clone();
@@ -280,7 +272,8 @@ impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
             .agents
             .iter()
             .filter(|(_, agent)| agent.energy == 0)
-            .map(|(id, _)| id.clone())
+            .map(|(id, _)| id)
+            .cloned()
             .collect();
 
         for id in to_remove.iter() {
@@ -290,7 +283,13 @@ impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
 
     fn step_migrations(&mut self, best_amount: usize, elite_amount: usize) {
         let mut candidates: Vec<_> = self.agents.keys().copied().collect::<Vec<_>>();
-        candidates.sort_by(|a1, a2| self.agents.get(a1).unwrap().energy.cmp(&self.agents.get(a2).unwrap().energy));
+        candidates.sort_by(|a1, a2| {
+            self.agents
+                .get(a1)
+                .unwrap()
+                .energy
+                .cmp(&self.agents.get(a2).unwrap().energy)
+        });
         let best_amount = best_amount.min(candidates.len());
         let elite_amount = elite_amount.min(best_amount);
         let best = &candidates[..best_amount];
@@ -302,13 +301,12 @@ impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
     }
 }
 
-
 #[derive(Debug)]
 pub struct System<const N: usize, F, CF, RF>
-    where
-        F: FitnessFn<N>,
-        CF: CombatWinChanceFn,
-        RF: ReproductionChanceFn
+where
+    F: FitnessFn<N>,
+    CF: CombatWinChanceFn,
+    RF: ReproductionChanceFn,
 {
     islands: Vec<Island<N, F, CF, RF>>,
     steps: u32,
@@ -323,44 +321,54 @@ pub struct System<const N: usize, F, CF, RF>
 }
 
 impl<const N: usize, F, CF, RF> System<N, F, CF, RF>
-    where
-        F: FitnessFn<N>,
-        CF: CombatWinChanceFn,
-        RF: ReproductionChanceFn
+where
+    F: FitnessFn<N>,
+    CF: CombatWinChanceFn,
+    RF: ReproductionChanceFn,
 {
     fn log(&mut self, start: Instant) -> String {
         let timestamp = start.elapsed().as_secs_f32();
         let historical_best = F::call(&self.best_sol());
-        let agents_amount = self.islands
+        let agents_amount = self.islands.iter().map(|i| i.agents.len()).sum::<usize>();
+        let energy_sum = self
+            .islands
             .iter()
-            .map(|i| i.agents.len())
-            .sum::<usize>();
-        let energy_sum = self.islands
-            .iter()
-            .map(|i|
-                i.agents.values().map(|a| a.energy).sum::<u32>()
-            )
+            .map(|i| i.agents.values().map(|a| a.energy).sum::<u32>())
             .sum::<u32>();
-        let best_living = self.islands
+        let best_living = self
+            .islands
             .iter()
             .flat_map(|i| i.agents.values())
             .min_by(|a1, a2| a1.fitness.partial_cmp(&a2.fitness).unwrap())
             .unwrap()
             .fitness;
 
-        let average_fitness = self.islands
+        let average_fitness = self
+            .islands
             .iter()
             .flat_map(|i| i.agents.values())
             .map(|a| a.fitness)
-            .sum::<f64>() / agents_amount as f64;
+            .sum::<f64>()
+            / agents_amount as f64;
 
-        let average_energy = self.islands
+        let average_energy = self
+            .islands
             .iter()
             .flat_map(|i| i.agents.values())
             .map(|a| a.energy)
-            .sum::<u32>() as f64 / agents_amount as f64;
+            .sum::<u32>() as f64
+            / agents_amount as f64;
 
-        format!("{},{},{},{},{},{},{}\n", timestamp, historical_best, agents_amount, energy_sum, best_living, average_fitness, average_energy)
+        format!(
+            "{},{},{},{},{},{},{}\n",
+            timestamp,
+            historical_best,
+            agents_amount,
+            energy_sum,
+            best_living,
+            average_fitness,
+            average_energy
+        )
     }
 
     fn migrate_agents(&mut self) {
@@ -409,27 +417,27 @@ impl<const N: usize, F, CF, RF> System<N, F, CF, RF>
                     s.push_str(i);
                     s
                 })
-                .as_bytes()
-        ).unwrap();
+                .as_bytes(),
+        )
+        .unwrap();
 
         let start = Instant::now();
         for i in 0..self.steps {
             for island in self.islands.iter_mut() {
-                island.step(
-                    self.energy_reproduction_percent,
-                    self.energy_combat,
-                );
+                island.step(self.energy_reproduction_percent, self.energy_combat);
             }
 
             if i % self.migration_steps == 0 {
                 for island in self.islands.iter_mut() {
-                    island.step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
+                    island
+                        .step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
                 }
                 self.migrate_agents();
             }
 
             if i % self.log_steps == 0 {
-                f.write_all(self.log(start).as_bytes()).expect("Can't write logs to the log file");
+                f.write_all(self.log(start).as_bytes())
+                    .expect("Can't write logs to the log file");
             }
         }
 
@@ -459,10 +467,10 @@ pub struct SystemBuilder<
 }
 
 impl<const N: usize, F, CF, RF> SystemBuilder<N, F, CF, RF>
-    where
-        F: FitnessFn<N>,
-        CF: CombatWinChanceFn,
-        RF: ReproductionChanceFn
+where
+    F: FitnessFn<N>,
+    CF: CombatWinChanceFn,
+    RF: ReproductionChanceFn,
 {
     pub fn new() -> Self {
         SystemBuilder {
@@ -563,4 +571,13 @@ impl<const N: usize, F, CF, RF> SystemBuilder<N, F, CF, RF>
     }
 }
 
-
+impl<const N: usize, F, CF, RF> Default for SystemBuilder<N, F, CF, RF>
+where
+    F: FitnessFn<N>,
+    CF: CombatWinChanceFn,
+    RF: ReproductionChanceFn,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
