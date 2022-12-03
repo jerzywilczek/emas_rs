@@ -2,6 +2,7 @@ use conf_functions::*;
 use fitness_functions::FitnessFn;
 use rand::prelude::SliceRandom;
 use rand::{random, seq::IteratorRandom, thread_rng, Rng};
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -32,7 +33,7 @@ impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
             energy: self.energy,
             id: self.id,
             fitness: self.fitness,
-            f_phantom: PhantomData::default(),
+            f_phantom: PhantomData,
         }
     }
 }
@@ -51,7 +52,7 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
             energy: starting_energy,
             id,
             fitness: F::call(&genes),
-            f_phantom: PhantomData::default(),
+            f_phantom: PhantomData,
         }
     }
 
@@ -72,14 +73,14 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
             id: ch1_id,
             genes: [0.0; N],
             fitness: 0.0,
-            f_phantom: PhantomData::default(),
+            f_phantom: PhantomData,
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
             id: ch2_id,
             genes: [0.0; N],
             fitness: 0.0,
-            f_phantom: PhantomData::default(),
+            f_phantom: PhantomData,
         };
 
         let cut_point = thread_rng().gen_range(0..self.genes.len());
@@ -169,6 +170,14 @@ where
     rf_phantom: PhantomData<RF>,
 }
 
+unsafe impl<const N: usize, F, CF, RF> Send for Island<N, F, CF, RF>
+where
+    F: FitnessFn<N>,
+    CF: CombatWinChanceFn,
+    RF: ReproductionChanceFn,
+{
+}
+
 impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
 where
     F: FitnessFn<N>,
@@ -192,9 +201,9 @@ where
             migration_queue: Vec::new(),
             last_agent_id: agents_amount - 1,
             historical_best,
-            f_phantom: PhantomData::default(),
-            cf_phantom: PhantomData::default(),
-            rf_phantom: PhantomData::default(),
+            f_phantom: PhantomData,
+            cf_phantom: PhantomData,
+            rf_phantom: PhantomData,
         }
     }
 
@@ -316,7 +325,7 @@ where
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     logs: Vec<String>,
-    log_steps: u32,
+    _log_steps: u32,
     f_phantom: PhantomData<F>,
 }
 
@@ -422,23 +431,22 @@ where
         .unwrap();
 
         let start = Instant::now();
-        for i in 0..self.steps {
-            for island in self.islands.iter_mut() {
-                island.step(self.energy_reproduction_percent, self.energy_combat);
-            }
 
-            if i % self.migration_steps == 0 {
-                for island in self.islands.iter_mut() {
-                    island
-                        .step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
+        // FIXME: log_steps is not used at all and logs are printed every migration_steps instead
+        for _ in 0..self.steps / self.migration_steps {
+            self.islands.par_iter_mut().for_each(|island| {
+                for _ in 0..self.migration_steps {
+                    island.step(self.energy_reproduction_percent, self.energy_combat);
                 }
-                self.migrate_agents();
-            }
+            });
 
-            if i % self.log_steps == 0 {
-                f.write_all(self.log(start).as_bytes())
-                    .expect("Can't write logs to the log file");
+            for island in self.islands.iter_mut() {
+                island.step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
             }
+            self.migrate_agents();
+
+            f.write_all(self.log(start).as_bytes())
+                .expect("Can't write logs to the log file");
         }
 
         self.best_sol()
@@ -484,9 +492,9 @@ where
             migrations_best_amount: 10,
             migrations_elite_amount: 5,
             log_steps: 100,
-            f_phantom: PhantomData::default(),
-            cf_phantom: PhantomData::default(),
-            rf_phantom: PhantomData::default(),
+            f_phantom: PhantomData,
+            cf_phantom: PhantomData,
+            rf_phantom: PhantomData,
         }
     }
 
@@ -565,8 +573,8 @@ where
             migrations_best_amount: self.migrations_best_amount,
             migrations_elite_amount: self.migrations_elite_amount,
             logs,
-            log_steps: self.log_steps,
-            f_phantom: PhantomData::default(),
+            _log_steps: self.log_steps,
+            f_phantom: PhantomData,
         }
     }
 }
