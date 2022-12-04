@@ -18,7 +18,7 @@ pub mod fitness_functions;
 struct AgentId(usize, usize);
 
 #[derive(Debug)]
-struct Agent<const N: usize, F: FitnessFn<N>> {
+struct Agent<const N: usize, F: FitnessFn<N> + Send> {
     genes: [f64; N],
     energy: u32,
     id: AgentId,
@@ -26,7 +26,7 @@ struct Agent<const N: usize, F: FitnessFn<N>> {
     f_phantom: PhantomData<F>,
 }
 
-impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
+impl<const N: usize, F: FitnessFn<N> + Send> Clone for Agent<N, F> {
     fn clone(&self) -> Self {
         Agent {
             genes: self.genes,
@@ -40,7 +40,7 @@ impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
 
 pub struct ReproductionChance(pub f64);
 
-impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
+impl<const N: usize, F: FitnessFn<N> + Send> Agent<N, F> {
     fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F> {
         let mut genes = [0.0; N];
         for (gene, (d_min, d_max)) in genes.iter_mut().zip(F::DOMAIN) {
@@ -140,13 +140,13 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
     }
 }
 
-impl<const N: usize, F: FitnessFn<N>> PartialEq for Agent<N, F> {
+impl<const N: usize, F: FitnessFn<N> + Send> PartialEq for Agent<N, F> {
     fn eq(&self, other: &Self) -> bool {
         self.id.0 == other.id.0 && self.id.1 == other.id.1
     }
 }
 
-impl<const N: usize, F: FitnessFn<N>> Eq for Agent<N, F> {}
+impl<const N: usize, F: FitnessFn<N> + Send> Eq for Agent<N, F> {}
 
 enum Action {
     Combat,
@@ -156,9 +156,9 @@ enum Action {
 #[derive(Debug)]
 struct Island<const N: usize, F, CF, RF>
 where
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn,
-    RF: ReproductionChanceFn,
+    F: FitnessFn<N> + Send,
+    CF: CombatWinChanceFn + Send,
+    RF: ReproductionChanceFn + Send,
 {
     _id: usize,
     agents: HashMap<AgentId, Agent<N, F>>,
@@ -170,19 +170,11 @@ where
     rf_phantom: PhantomData<RF>,
 }
 
-unsafe impl<const N: usize, F, CF, RF> Send for Island<N, F, CF, RF>
-where
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn,
-    RF: ReproductionChanceFn,
-{
-}
-
 impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
 where
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn,
-    RF: ReproductionChanceFn,
+    F: FitnessFn<N> + Send,
+    CF: CombatWinChanceFn + Send,
+    RF: ReproductionChanceFn + Send,
 {
     fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<N, F, CF, RF> {
         let agents: HashMap<AgentId, Agent<N, F>> = (0..agents_amount)
@@ -313,9 +305,9 @@ where
 #[derive(Debug)]
 pub struct System<const N: usize, F, CF, RF>
 where
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn,
-    RF: ReproductionChanceFn,
+    F: FitnessFn<N> + Send,
+    CF: CombatWinChanceFn + Send,
+    RF: ReproductionChanceFn + Send,
 {
     islands: Vec<Island<N, F, CF, RF>>,
     steps: u32,
@@ -331,9 +323,9 @@ where
 
 impl<const N: usize, F, CF, RF> System<N, F, CF, RF>
 where
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn,
-    RF: ReproductionChanceFn,
+    F: FitnessFn<N> + Send,
+    CF: CombatWinChanceFn + Send,
+    RF: ReproductionChanceFn + Send,
 {
     fn log(&mut self, start: Instant) -> String {
         let timestamp = start.elapsed().as_secs_f32();
@@ -459,9 +451,9 @@ where
 
 pub struct SystemBuilder<
     const N: usize,
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn = DefaultCombatWinChanceFn,
-    RF: ReproductionChanceFn = DefaultReproductionChanceFn,
+    F: FitnessFn<N> + Send,
+    CF: CombatWinChanceFn + Send = DefaultCombatWinChanceFn,
+    RF: ReproductionChanceFn + Send = DefaultReproductionChanceFn,
 > {
     island_amount: usize,
     steps: u32,
@@ -480,9 +472,9 @@ pub struct SystemBuilder<
 
 impl<const N: usize, F, CF, RF> SystemBuilder<N, F, CF, RF>
 where
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn,
-    RF: ReproductionChanceFn,
+    F: FitnessFn<N> + Send,
+    CF: CombatWinChanceFn + Send,
+    RF: ReproductionChanceFn + Send,
 {
     pub fn new() -> Self {
         SystemBuilder {
@@ -585,9 +577,9 @@ where
 
 impl<const N: usize, F, CF, RF> Default for SystemBuilder<N, F, CF, RF>
 where
-    F: FitnessFn<N>,
-    CF: CombatWinChanceFn,
-    RF: ReproductionChanceFn,
+    F: FitnessFn<N> + Send,
+    CF: CombatWinChanceFn + Send,
+    RF: ReproductionChanceFn + Send,
 {
     fn default() -> Self {
         Self::new()
