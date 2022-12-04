@@ -17,15 +17,16 @@ pub mod fitness_functions;
 struct AgentId(usize, usize);
 
 #[derive(Debug)]
-struct Agent<const N: usize, F: FitnessFn<N>> {
+struct Agent<const N: usize, F: FitnessFn<N>, MF: MutationFn<N, F>> {
     genes: [f64; N],
     energy: u32,
     id: AgentId,
     fitness: f64,
     f_phantom: PhantomData<F>,
+    mf_phantom: PhantomData<MF>,
 }
 
-impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
+impl<const N: usize, F: FitnessFn<N>, MF: MutationFn<N, F>> Clone for Agent<N, F, MF> {
     fn clone(&self) -> Self {
         Agent {
             genes: self.genes,
@@ -33,14 +34,15 @@ impl<const N: usize, F: FitnessFn<N>> Clone for Agent<N, F> {
             id: self.id,
             fitness: self.fitness,
             f_phantom: PhantomData::default(),
+            mf_phantom: PhantomData::default(),
         }
     }
 }
 
 pub struct ReproductionChance(pub f64);
 
-impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
-    fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F> {
+impl<const N: usize, F: FitnessFn<N>, MF: MutationFn<N, F>> Agent<N, F, MF> {
+    fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F, MF> {
         let mut genes = [0.0; N];
         for (gene, (d_min, d_max)) in genes.iter_mut().zip(F::DOMAIN) {
             let domain_len = d_max - d_min;
@@ -52,16 +54,17 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
             id,
             fitness: F::call(&genes),
             f_phantom: PhantomData::default(),
+            mf_phantom: PhantomData::default(),
         }
     }
 
     fn reproduce(
         &mut self,
-        other: &mut Agent<N, F>,
+        other: &mut Agent<N, F, MF>,
         energy_passed_percent: f64,
         ch1_id: AgentId,
         ch2_id: AgentId,
-    ) -> (Agent<N, F>, Agent<N, F>) {
+    ) -> (Agent<N, F, MF>, Agent<N, F, MF>) {
         let par1_en = (energy_passed_percent * self.energy as f64) as u32;
         let par2_en = (energy_passed_percent * other.energy as f64) as u32;
         self.energy -= par1_en;
@@ -73,6 +76,7 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
             genes: [0.0; N],
             fitness: 0.0,
             f_phantom: PhantomData::default(),
+            mf_phantom: PhantomData::default(),
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
@@ -80,6 +84,7 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
             genes: [0.0; N],
             fitness: 0.0,
             f_phantom: PhantomData::default(),
+            mf_phantom: PhantomData::default(),
         };
 
         let cut_point = thread_rng().gen_range(0..self.genes.len());
@@ -102,22 +107,10 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
     }
 
     fn mutate(&mut self) {
-        let mut rng = thread_rng();
-        let gene_mut_chance = 1.0;
-        for i in 0..N {
-            let mutation_range = (F::DOMAIN[i].1 - F::DOMAIN[i].0) / 20.0;
-            if rng.gen::<f64>() < gene_mut_chance {
-                let mutation_value = rng.gen::<f64>() * mutation_range;
-                if rng.gen() {
-                    self.genes[i] = (self.genes[i] + mutation_value).min(F::DOMAIN[i].1);
-                } else {
-                    self.genes[i] = (self.genes[i] - mutation_value).max(F::DOMAIN[i].0);
-                }
-            }
-        }
+        MF::call(&mut self.genes);
     }
 
-    fn combat(&mut self, other: &mut Agent<N, F>, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
+    fn combat(&mut self, other: &mut Agent<N, F, MF>, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
         let (winner, looser) =
             if thread_rng().gen::<f64>() < win_chance_fn(self.fitness, other.fitness) {
                 (self, other)
@@ -139,13 +132,13 @@ impl<const N: usize, F: FitnessFn<N>> Agent<N, F> {
     }
 }
 
-impl<const N: usize, F: FitnessFn<N>> PartialEq for Agent<N, F> {
+impl<const N: usize, F: FitnessFn<N>, MF: MutationFn<N, F>> PartialEq for Agent<N, F, MF> {
     fn eq(&self, other: &Self) -> bool {
         self.id.0 == other.id.0 && self.id.1 == other.id.1
     }
 }
 
-impl<const N: usize, F: FitnessFn<N>> Eq for Agent<N, F> {}
+impl<const N: usize, F: FitnessFn<N>, MF: MutationFn<N, F>> Eq for Agent<N, F, MF> {}
 
 enum Action {
     Combat,
@@ -153,30 +146,33 @@ enum Action {
 }
 
 #[derive(Debug)]
-struct Island<const N: usize, F, CF, RF>
+struct Island<const N: usize, F, CF, RF, MF>
 where
     F: FitnessFn<N>,
     CF: CombatWinChanceFn,
     RF: ReproductionChanceFn,
+    MF: MutationFn<N, F>,
 {
     _id: usize,
-    agents: HashMap<AgentId, Agent<N, F>>,
-    migration_queue: Vec<Agent<N, F>>,
+    agents: HashMap<AgentId, Agent<N, F, MF>>,
+    migration_queue: Vec<Agent<N, F, MF>>,
     last_agent_id: usize,
-    historical_best: Agent<N, F>,
+    historical_best: Agent<N, F, MF>,
     f_phantom: PhantomData<F>,
     cf_phantom: PhantomData<CF>,
     rf_phantom: PhantomData<RF>,
+    mf_phantom: PhantomData<MF>,
 }
 
-impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
+impl<const N: usize, F, CF, RF, MF> Island<N, F, CF, RF, MF>
 where
     F: FitnessFn<N>,
     CF: CombatWinChanceFn,
     RF: ReproductionChanceFn,
+    MF: MutationFn<N, F>,
 {
-    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<N, F, CF, RF> {
-        let agents: HashMap<AgentId, Agent<N, F>> = (0..agents_amount)
+    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<N, F, CF, RF, MF> {
+        let agents: HashMap<AgentId, Agent<N, F, MF>> = (0..agents_amount)
             .map(|a_id| {
                 (
                     AgentId(id, a_id),
@@ -195,6 +191,7 @@ where
             f_phantom: PhantomData::default(),
             cf_phantom: PhantomData::default(),
             rf_phantom: PhantomData::default(),
+            mf_phantom: PhantomData::default(),
         }
     }
 
@@ -207,11 +204,11 @@ where
         &mut self,
         a1_id: &AgentId,
         a2_id: &AgentId,
-    ) -> (&mut Agent<N, F>, &mut Agent<N, F>) {
+    ) -> (&mut Agent<N, F, MF>, &mut Agent<N, F, MF>) {
         assert_ne!(a1_id, a2_id);
 
-        let a1 = self.agents.get_mut(a1_id).unwrap() as *mut Agent<N, F>;
-        let a2 = self.agents.get_mut(a2_id).unwrap() as *mut Agent<N, F>;
+        let a1 = self.agents.get_mut(a1_id).unwrap() as *mut Agent<N, F, MF>;
+        let a2 = self.agents.get_mut(a2_id).unwrap() as *mut Agent<N, F, MF>;
         unsafe { (&mut *a1, &mut *a2) }
     }
 
@@ -302,13 +299,14 @@ where
 }
 
 #[derive(Debug)]
-pub struct System<const N: usize, F, CF, RF>
+pub struct System<const N: usize, F, CF, RF, MF>
 where
     F: FitnessFn<N>,
     CF: CombatWinChanceFn,
     RF: ReproductionChanceFn,
+    MF: MutationFn<N, F>,
 {
-    islands: Vec<Island<N, F, CF, RF>>,
+    islands: Vec<Island<N, F, CF, RF, MF>>,
     steps: u32,
     energy_reproduction_percent: f64,
     energy_combat: u32,
@@ -320,11 +318,12 @@ where
     f_phantom: PhantomData<F>,
 }
 
-impl<const N: usize, F, CF, RF> System<N, F, CF, RF>
+impl<const N: usize, F, CF, RF, MF> System<N, F, CF, RF, MF>
 where
     F: FitnessFn<N>,
     CF: CombatWinChanceFn,
     RF: ReproductionChanceFn,
+    MF: MutationFn<N, F>,
 {
     fn log(&mut self, start: Instant) -> String {
         let timestamp = start.elapsed().as_secs_f32();
@@ -450,6 +449,7 @@ pub struct SystemBuilder<
     F: FitnessFn<N>,
     CF: CombatWinChanceFn = DefaultCombatWinChanceFn,
     RF: ReproductionChanceFn = DefaultReproductionChanceFn,
+    MF: MutationFn<N, F> = DefaultMutationFn<N, F>,
 > {
     island_amount: usize,
     steps: u32,
@@ -464,13 +464,15 @@ pub struct SystemBuilder<
     f_phantom: PhantomData<F>,
     cf_phantom: PhantomData<CF>,
     rf_phantom: PhantomData<RF>,
+    mf_phantom: PhantomData<MF>,
 }
 
-impl<const N: usize, F, CF, RF> SystemBuilder<N, F, CF, RF>
+impl<const N: usize, F, CF, RF, MF> SystemBuilder<N, F, CF, RF, MF>
 where
     F: FitnessFn<N>,
     CF: CombatWinChanceFn,
     RF: ReproductionChanceFn,
+    MF: MutationFn<N, F>,
 {
     pub fn new() -> Self {
         SystemBuilder {
@@ -487,6 +489,7 @@ where
             f_phantom: PhantomData::default(),
             cf_phantom: PhantomData::default(),
             rf_phantom: PhantomData::default(),
+            mf_phantom: PhantomData::default(),
         }
     }
 
@@ -541,7 +544,7 @@ where
         self
     }
 
-    pub fn build(self) -> System<N, F, CF, RF> {
+    pub fn build(self) -> System<N, F, CF, RF, MF> {
         for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
             if d_min > d_max {
                 panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
@@ -571,11 +574,12 @@ where
     }
 }
 
-impl<const N: usize, F, CF, RF> Default for SystemBuilder<N, F, CF, RF>
+impl<const N: usize, F, CF, RF, MF> Default for SystemBuilder<N, F, CF, RF, MF>
 where
     F: FitnessFn<N>,
     CF: CombatWinChanceFn,
     RF: ReproductionChanceFn,
+    MF: MutationFn<N, F>,
 {
     fn default() -> Self {
         Self::new()
