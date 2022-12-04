@@ -426,7 +426,6 @@ where
 
         let log_notification = crossbeam::channel::tick(self.log_period);
 
-        // FIXME: log_steps is not used at all and logs are printed every migration_steps instead
         for _ in 0..self.steps / self.migration_steps {
             self.islands.par_iter_mut().for_each(|island| {
                 for _ in 0..self.migration_steps {
