@@ -40,7 +40,6 @@ impl<const N: usize> FitnessFn<N> for RosenbrockFitness<N> {
 
 #[cfg(test)]
 mod tests {
-    use std::env::args;
     use super::*;
 
     #[test]
