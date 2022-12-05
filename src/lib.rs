@@ -9,7 +9,7 @@ use std::fs::File;
 use std::hash::Hash;
 use std::io::Write;
 use std::marker::PhantomData;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub mod conf_functions;
 pub mod fitness_functions;
@@ -317,7 +317,7 @@ where
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     logs: Vec<String>,
-    _log_steps: u32,
+    log_period: Duration,
     f_phantom: PhantomData<F>,
 }
 
@@ -424,7 +424,8 @@ where
 
         let start = Instant::now();
 
-        // FIXME: log_steps is not used at all and logs are printed every migration_steps instead
+        let log_notification = crossbeam::channel::tick(self.log_period);
+
         for _ in 0..self.steps / self.migration_steps {
             self.islands.par_iter_mut().for_each(|island| {
                 for _ in 0..self.migration_steps {
@@ -437,8 +438,10 @@ where
             }
             self.migrate_agents();
 
-            f.write_all(self.log(start).as_bytes())
-                .expect("Can't write logs to the log file");
+            if log_notification.try_recv().is_ok() {
+                f.write_all(self.log(start).as_bytes())
+                    .expect("Can't write logs to the log file");
+            }
         }
 
         self.best_sol()
@@ -460,7 +463,7 @@ pub struct SystemBuilder<
     migration_steps: u32,
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
-    log_steps: u32,
+    log_period: Duration,
     f_phantom: PhantomData<F>,
     cf_phantom: PhantomData<CF>,
     rf_phantom: PhantomData<RF>,
@@ -483,7 +486,7 @@ where
             migration_steps: 50,
             migrations_best_amount: 10,
             migrations_elite_amount: 5,
-            log_steps: 100,
+            log_period: Duration::from_secs(1),
             f_phantom: PhantomData,
             cf_phantom: PhantomData,
             rf_phantom: PhantomData,
@@ -526,8 +529,8 @@ where
         self
     }
 
-    pub fn log_steps(mut self, amount: u32) -> Self {
-        self.log_steps = amount;
+    pub fn log_period(mut self, amount: Duration) -> Self {
+        self.log_period = amount;
         self
     }
 
@@ -565,7 +568,7 @@ where
             migrations_best_amount: self.migrations_best_amount,
             migrations_elite_amount: self.migrations_elite_amount,
             logs,
-            _log_steps: self.log_steps,
+            log_period: self.log_period,
             f_phantom: PhantomData,
         }
     }
