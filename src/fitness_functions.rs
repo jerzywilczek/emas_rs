@@ -37,7 +37,7 @@ impl<const N: usize> FitnessFn<N> for RosenbrockFitness<N> {
     }
 }
 
-struct AckleyFitneess<const N: usize> {}
+struct AckleyFitness<const N: usize> {}
 
 impl<const N: usize> FitnessFn<N> for AckleyFitness<N> {
     const DOMAIN: [(f64, f64); N] = [(-32.768, 32.768); N];
