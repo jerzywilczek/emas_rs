@@ -97,18 +97,18 @@ mod tests {
     fn ackley_correct_values() {
         let eps = 1e-15;
         // global minimum at (0, ..., 0)
-        assert_approx_eq!(AckleyFitneess::<2>::call(&[0.0, 0.0]), 0.0, eps);
-        assert_approx_eq!(AckleyFitneess::<5>::call(&[0.0; 5]), 0.0, eps);
-        assert_approx_eq!(AckleyFitneess::<8>::call(&[0.0; 8]), 0.0, eps);
+        assert_approx_eq!(AckleyFitness::<2>::call(&[0.0, 0.0]), 0.0, eps);
+        assert_approx_eq!(AckleyFitness::<5>::call(&[0.0; 5]), 0.0, eps);
+        assert_approx_eq!(AckleyFitness::<8>::call(&[0.0; 8]), 0.0, eps);
 
         // other input
         assert_approx_eq!(
-            AckleyFitneess::<2>::call(&[-1.5, 0.3]),
+            AckleyFitness::<2>::call(&[-1.5, 0.3]),
             6.089244894966122,
             eps
         );
         assert_approx_eq!(
-            AckleyFitneess::<5>::call(&[-15.242, 5.432, 6.958, 4.322, 20.385]),
+            AckleyFitness::<5>::call(&[-15.242, 5.432, 6.958, 4.322, 20.385]),
             20.170366886584574,
             eps
         );
