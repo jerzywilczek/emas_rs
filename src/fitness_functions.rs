@@ -102,24 +102,15 @@ mod tests {
         assert_approx_eq!(AckleyFitneess::<8>::call(&[0.0; 8]), 0.0, eps);
 
         // other input
-        assert_approx_eq!(AckleyFitneess::<2>::call(&[-1.5, 0.3]), 6.089244894966122, eps);
-        assert_approx_eq!(AckleyFitneess::<5>::call(&[-15.242, 5.432, 6.958, 4.322, 20.385]), 20.170366886584574, eps);
-
-
-
-
-
-
-
-
-
-
-        // TODO remove these empty \n.
-
-
-
-
-
-
+        assert_approx_eq!(
+            AckleyFitneess::<2>::call(&[-1.5, 0.3]),
+            6.089244894966122,
+            eps
+        );
+        assert_approx_eq!(
+            AckleyFitneess::<5>::call(&[-15.242, 5.432, 6.958, 4.322, 20.385]),
+            20.170366886584574,
+            eps
+        );
     }
 }
