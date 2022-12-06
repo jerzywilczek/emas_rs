@@ -1,10 +1,32 @@
-use emas_rs::fitness_functions::{FitnessFn, RastriginFitness};
+use emas_rs::conf_functions::combat_functions::default_combat;
+use emas_rs::conf_functions::fitness_functions::rastrigin_fitness::{domain, rastrigin};
+use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
+use emas_rs::conf_functions::ConfigurableFunctions;
 use emas_rs::SystemBuilder;
 use std::time::Instant;
 
+const N: usize = 100;
+struct Configuration;
+
+impl ConfigurableFunctions<N> for Configuration {
+    const DOMAIN: [(f64, f64); N] = domain();
+
+    fn fitness(args: &[f64; N]) -> f64 {
+        rastrigin(args)
+    }
+
+    fn combat(this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
+        default_combat(this_agent_fitness, other_agent_fitness)
+    }
+
+    fn reproduction_chance(energy: u32) -> emas_rs::ReproductionChance {
+        default_reproduction_chance(energy)
+    }
+}
+
 fn main() {
     const N: usize = 100;
-    let mut system = SystemBuilder::<N, RastriginFitness<N>>::new()
+    let mut system = SystemBuilder::<N, Configuration>::new()
         .steps(1_000_000)
         .build();
     let t0 = Instant::now();
@@ -21,6 +43,6 @@ fn main() {
             print!(", {}", arg);
         }
     }
-    println!("] => {}", RastriginFitness::call(&sol));
+    println!("] => {}", rastrigin(&sol));
     println!("{}s", t0);
 }
