@@ -88,11 +88,6 @@ mod tests {
         assert_eq!(RosenbrockFitness::<2>::call(&[1.5, -0.6]), 812.5);
     }
 
-    fn is_within_precision_err(val: f64, expected: f64, eps: Option<f64>) -> bool {
-        let eps = eps.unwrap_or(1e-15);
-        f64::abs(val - expected) < eps
-    }
-
     #[test]
     fn ackley_correct_values() {
         let eps = 1e-15;
