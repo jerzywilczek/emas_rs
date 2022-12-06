@@ -1,5 +1,4 @@
-use conf_functions::*;
-use fitness_functions::FitnessFn;
+use conf_functions::ConfigurableFunctions;
 use rand::prelude::SliceRandom;
 use rand::{random, seq::IteratorRandom, thread_rng, Rng};
 use rayon::prelude::*;
@@ -12,13 +11,12 @@ use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
 pub mod conf_functions;
-pub mod fitness_functions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
 
 #[derive(Debug)]
-struct Agent<const N: usize, F: FitnessFn<N> + Send> {
+struct Agent<const N: usize, F: ConfigurableFunctions<N> + Send> {
     genes: [f64; N],
     energy: u32,
     id: AgentId,
@@ -26,7 +24,7 @@ struct Agent<const N: usize, F: FitnessFn<N> + Send> {
     f_phantom: PhantomData<F>,
 }
 
-impl<const N: usize, F: FitnessFn<N> + Send> Clone for Agent<N, F> {
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> Clone for Agent<N, F> {
     fn clone(&self) -> Self {
         Agent {
             genes: self.genes,
@@ -40,7 +38,7 @@ impl<const N: usize, F: FitnessFn<N> + Send> Clone for Agent<N, F> {
 
 pub struct ReproductionChance(pub f64);
 
-impl<const N: usize, F: FitnessFn<N> + Send> Agent<N, F> {
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> Agent<N, F> {
     fn rand_agent(starting_energy: u32, id: AgentId) -> Agent<N, F> {
         let mut genes = [0.0; N];
         for (gene, (d_min, d_max)) in genes.iter_mut().zip(F::DOMAIN) {
@@ -51,7 +49,7 @@ impl<const N: usize, F: FitnessFn<N> + Send> Agent<N, F> {
             genes,
             energy: starting_energy,
             id,
-            fitness: F::call(&genes),
+            fitness: F::fitness(&genes),
             f_phantom: PhantomData,
         }
     }
@@ -96,8 +94,8 @@ impl<const N: usize, F: FitnessFn<N> + Send> Agent<N, F> {
         ch1.mutate();
         ch2.mutate();
 
-        ch1.fitness = F::call(&ch1.genes);
-        ch2.fitness = F::call(&ch2.genes);
+        ch1.fitness = F::fitness(&ch1.genes);
+        ch2.fitness = F::fitness(&ch2.genes);
 
         (ch1, ch2)
     }
@@ -118,13 +116,13 @@ impl<const N: usize, F: FitnessFn<N> + Send> Agent<N, F> {
         }
     }
 
-    fn combat(&mut self, other: &mut Agent<N, F>, energy: u32, win_chance_fn: fn(f64, f64) -> f64) {
-        let (winner, looser) =
-            if thread_rng().gen::<f64>() < win_chance_fn(self.fitness, other.fitness) {
-                (self, other)
-            } else {
-                (other, self)
-            };
+    fn combat(&mut self, other: &mut Agent<N, F>, energy: u32) {
+        let (winner, looser) = if thread_rng().gen::<f64>() < F::combat(self.fitness, other.fitness)
+        {
+            (self, other)
+        } else {
+            (other, self)
+        };
         let energy = energy.min(looser.energy);
         looser.energy -= energy;
         winner.energy += energy;
@@ -140,13 +138,13 @@ impl<const N: usize, F: FitnessFn<N> + Send> Agent<N, F> {
     }
 }
 
-impl<const N: usize, F: FitnessFn<N> + Send> PartialEq for Agent<N, F> {
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> PartialEq for Agent<N, F> {
     fn eq(&self, other: &Self) -> bool {
         self.id.0 == other.id.0 && self.id.1 == other.id.1
     }
 }
 
-impl<const N: usize, F: FitnessFn<N> + Send> Eq for Agent<N, F> {}
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> Eq for Agent<N, F> {}
 
 enum Action {
     Combat,
@@ -154,29 +152,16 @@ enum Action {
 }
 
 #[derive(Debug)]
-struct Island<const N: usize, F, CF, RF>
-where
-    F: FitnessFn<N> + Send,
-    CF: CombatWinChanceFn + Send,
-    RF: ReproductionChanceFn + Send,
-{
+struct Island<const N: usize, F: ConfigurableFunctions<N> + Send> {
     _id: usize,
     agents: HashMap<AgentId, Agent<N, F>>,
     migration_queue: Vec<Agent<N, F>>,
     last_agent_id: usize,
     historical_best: Agent<N, F>,
-    f_phantom: PhantomData<F>,
-    cf_phantom: PhantomData<CF>,
-    rf_phantom: PhantomData<RF>,
 }
 
-impl<const N: usize, F, CF, RF> Island<N, F, CF, RF>
-where
-    F: FitnessFn<N> + Send,
-    CF: CombatWinChanceFn + Send,
-    RF: ReproductionChanceFn + Send,
-{
-    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<N, F, CF, RF> {
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> Island<N, F> {
+    fn new(agents_amount: usize, agent_energy: u32, id: usize) -> Island<N, F> {
         let agents: HashMap<AgentId, Agent<N, F>> = (0..agents_amount)
             .map(|a_id| {
                 (
@@ -193,9 +178,6 @@ where
             migration_queue: Vec::new(),
             last_agent_id: agents_amount - 1,
             historical_best,
-            f_phantom: PhantomData,
-            cf_phantom: PhantomData,
-            rf_phantom: PhantomData,
         }
     }
 
@@ -221,7 +203,7 @@ where
         let mut to_combat = Vec::new();
 
         for (&id, agent) in self.agents.iter_mut() {
-            match agent.pick_action(RF::call(agent.energy)) {
+            match agent.pick_action(F::reproduction_chance(agent.energy)) {
                 Action::Reproduce => to_reproduction.push(id),
                 Action::Combat => to_combat.push(id),
             }
@@ -264,7 +246,7 @@ where
 
             let (a1, a2) = self.get_pair_mut(&a1_id, &a2_id);
 
-            a1.combat(a2, energy, CF::call);
+            a1.combat(a2, energy);
         }
     }
 
@@ -303,13 +285,8 @@ where
 }
 
 #[derive(Debug)]
-pub struct System<const N: usize, F, CF, RF>
-where
-    F: FitnessFn<N> + Send,
-    CF: CombatWinChanceFn + Send,
-    RF: ReproductionChanceFn + Send,
-{
-    islands: Vec<Island<N, F, CF, RF>>,
+pub struct System<const N: usize, F: ConfigurableFunctions<N> + Send> {
+    islands: Vec<Island<N, F>>,
     steps: u32,
     energy_reproduction_percent: f64,
     energy_combat: u32,
@@ -318,18 +295,12 @@ where
     migrations_elite_amount: usize,
     logs: Vec<String>,
     log_period: Duration,
-    f_phantom: PhantomData<F>,
 }
 
-impl<const N: usize, F, CF, RF> System<N, F, CF, RF>
-where
-    F: FitnessFn<N> + Send,
-    CF: CombatWinChanceFn + Send,
-    RF: ReproductionChanceFn + Send,
-{
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> System<N, F> {
     fn log(&mut self, start: Instant) -> String {
         let timestamp = start.elapsed().as_secs_f32();
-        let historical_best = F::call(&self.best_sol());
+        let historical_best = F::fitness(&self.best_sol());
         let agents_amount = self.islands.iter().map(|i| i.agents.len()).sum::<usize>();
         let energy_sum = self
             .islands
@@ -448,12 +419,7 @@ where
     }
 }
 
-pub struct SystemBuilder<
-    const N: usize,
-    F: FitnessFn<N> + Send,
-    CF: CombatWinChanceFn + Send = DefaultCombatWinChanceFn,
-    RF: ReproductionChanceFn + Send = DefaultReproductionChanceFn,
-> {
+pub struct SystemBuilder<const N: usize, F: ConfigurableFunctions<N> + Send> {
     island_amount: usize,
     steps: u32,
     agents_per_island: usize,
@@ -464,17 +430,10 @@ pub struct SystemBuilder<
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     log_period: Duration,
-    f_phantom: PhantomData<F>,
-    cf_phantom: PhantomData<CF>,
-    rf_phantom: PhantomData<RF>,
+    phantom: PhantomData<F>,
 }
 
-impl<const N: usize, F, CF, RF> SystemBuilder<N, F, CF, RF>
-where
-    F: FitnessFn<N> + Send,
-    CF: CombatWinChanceFn + Send,
-    RF: ReproductionChanceFn + Send,
-{
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> SystemBuilder<N, F> {
     pub fn new() -> Self {
         SystemBuilder {
             island_amount: 5,
@@ -487,9 +446,7 @@ where
             migrations_best_amount: 10,
             migrations_elite_amount: 5,
             log_period: Duration::from_secs(1),
-            f_phantom: PhantomData,
-            cf_phantom: PhantomData,
-            rf_phantom: PhantomData,
+            phantom: PhantomData,
         }
     }
 
@@ -544,7 +501,7 @@ where
         self
     }
 
-    pub fn build(self) -> System<N, F, CF, RF> {
+    pub fn build(self) -> System<N, F> {
         for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
             if d_min > d_max {
                 panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
@@ -569,17 +526,11 @@ where
             migrations_elite_amount: self.migrations_elite_amount,
             logs,
             log_period: self.log_period,
-            f_phantom: PhantomData,
         }
     }
 }
 
-impl<const N: usize, F, CF, RF> Default for SystemBuilder<N, F, CF, RF>
-where
-    F: FitnessFn<N> + Send,
-    CF: CombatWinChanceFn + Send,
-    RF: ReproductionChanceFn + Send,
-{
+impl<const N: usize, F: ConfigurableFunctions<N> + Send> Default for SystemBuilder<N, F> {
     fn default() -> Self {
         Self::new()
     }

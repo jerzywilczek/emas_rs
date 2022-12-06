@@ -1,34 +1,13 @@
 use crate::ReproductionChance;
 
-pub trait CombatWinChanceFn {
-    fn call(this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
-}
+pub mod combat_functions;
+pub mod fitness_functions;
+pub mod reproduction_chance_functions;
 
-pub struct DefaultCombatWinChanceFn;
+pub trait ConfigurableFunctions<const N: usize> {
+    const DOMAIN: [(f64, f64); N];
 
-impl CombatWinChanceFn for DefaultCombatWinChanceFn {
-    fn call(this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
-        if this_agent_fitness < other_agent_fitness {
-            return 0.8;
-        }
-        0.2
-    }
-}
-
-pub trait ReproductionChanceFn {
-    fn call(energy: u32) -> ReproductionChance;
-}
-
-pub struct DefaultReproductionChanceFn;
-
-impl ReproductionChanceFn for DefaultReproductionChanceFn {
-    fn call(energy: u32) -> ReproductionChance {
-        if energy < 25 {
-            return ReproductionChance(0.0);
-        }
-        if energy < 50 {
-            return ReproductionChance(0.25);
-        }
-        ReproductionChance(1.0)
-    }
+    fn fitness(args: &[f64; N]) -> f64;
+    fn combat(this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
+    fn reproduction_chance(energy: u32) -> ReproductionChance;
 }

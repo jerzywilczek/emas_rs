@@ -2,6 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib as mpl
+from os.path import exists
+import time
 mpl.use('tkagg')
 
 plt.style.use('fivethirtyeight')
@@ -31,6 +33,8 @@ def animate(i):
 
     plt.tight_layout()
 
+while not exists('./outputs.csv'):
+    time.sleep(0.05)
 
 ani = FuncAnimation(plt.gcf(), animate, interval=500)
 
