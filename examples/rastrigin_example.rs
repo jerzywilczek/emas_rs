@@ -1,10 +1,10 @@
 use emas_rs::conf_functions::combat_functions::default_combat;
 use emas_rs::conf_functions::fitness_functions::rastrigin_fitness::{domain, rastrigin};
+use emas_rs::conf_functions::mutation_functions::default_mutation;
 use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
 use emas_rs::conf_functions::ConfigurableFunctions;
 use emas_rs::SystemBuilder;
 use std::time::Instant;
-use emas_rs::conf_functions::mutation_functions::default_mutation;
 
 const N: usize = 100;
 struct Configuration;
