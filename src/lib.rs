@@ -101,19 +101,7 @@ impl<const N: usize, F: ConfigurableFunctions<N> + Send> Agent<N, F> {
     }
 
     fn mutate(&mut self) {
-        let mut rng = thread_rng();
-        let gene_mut_chance = 1.0;
-        for i in 0..N {
-            let mutation_range = (F::DOMAIN[i].1 - F::DOMAIN[i].0) / 20.0;
-            if rng.gen::<f64>() < gene_mut_chance {
-                let mutation_value = rng.gen::<f64>() * mutation_range;
-                if rng.gen() {
-                    self.genes[i] = (self.genes[i] + mutation_value).min(F::DOMAIN[i].1);
-                } else {
-                    self.genes[i] = (self.genes[i] - mutation_value).max(F::DOMAIN[i].0);
-                }
-            }
-        }
+        F::mutatate(&mut self.genes);
     }
 
     fn combat(&mut self, other: &mut Agent<N, F>, energy: u32) {

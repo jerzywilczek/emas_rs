@@ -4,6 +4,7 @@ use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction
 use emas_rs::conf_functions::ConfigurableFunctions;
 use emas_rs::SystemBuilder;
 use std::time::Instant;
+use emas_rs::conf_functions::mutation_functions::default_mutation;
 
 const N: usize = 100;
 struct Configuration;
@@ -21,6 +22,10 @@ impl ConfigurableFunctions<N> for Configuration {
 
     fn reproduction_chance(energy: u32) -> emas_rs::ReproductionChance {
         default_reproduction_chance(energy)
+    }
+
+    fn mutatate(genes: &mut [f64; N]) {
+        default_mutation(genes, domain());
     }
 }
 

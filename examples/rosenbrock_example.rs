@@ -6,6 +6,7 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time;
 use std::time::Instant;
+use emas_rs::conf_functions::mutation_functions::default_mutation;
 
 const DOMAIN: [(f64, f64); 2] = [(-5.0, 5.0); 2];
 
@@ -32,6 +33,10 @@ impl ConfigurableFunctions<2> for Configuration {
 
     fn reproduction_chance(energy: u32) -> emas_rs::ReproductionChance {
         default_reproduction_chance(energy)
+    }
+
+    fn mutatate(genes: &mut [f64; 2]) {
+        default_mutation(genes, DOMAIN)
     }
 }
 
