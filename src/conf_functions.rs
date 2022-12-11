@@ -11,5 +11,5 @@ pub trait ConfigurableFunctions<const N: usize> {
     fn fitness(args: &[f64; N]) -> f64;
     fn combat(this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
     fn reproduction_chance(energy: u32) -> ReproductionChance;
-    fn mutatate(genes: &mut [f64; N]);
+    fn mutate(genes: &mut [f64; N]);
 }

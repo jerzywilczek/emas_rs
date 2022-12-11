@@ -1,6 +1,6 @@
 use rand::{thread_rng, Rng};
 
-pub fn default_mutation<const N: usize>(genes: &mut [f64; N], domain: [(f64, f64); N]) {
+pub fn default_mutation<const N: usize>(genes: &mut [f64; N], domain: &[(f64, f64); N]) {
     let mut rng = thread_rng();
     let gene_mut_chance = 1.0;
     for i in 0..N {

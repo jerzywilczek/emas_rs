@@ -36,8 +36,8 @@ impl ConfigurableFunctions<2> for Configuration {
         default_reproduction_chance(energy)
     }
 
-    fn mutatate(genes: &mut [f64; 2]) {
-        default_mutation(genes, DOMAIN)
+    fn mutate(genes: &mut [f64; 2]) {
+        default_mutation(genes, &DOMAIN)
     }
 }
 

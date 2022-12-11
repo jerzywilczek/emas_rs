@@ -101,7 +101,7 @@ impl<const N: usize, F: ConfigurableFunctions<N> + Send> Agent<N, F> {
     }
 
     fn mutate(&mut self) {
-        F::mutatate(&mut self.genes);
+        F::mutate(&mut self.genes);
     }
 
     fn combat(&mut self, other: &mut Agent<N, F>, energy: u32) {

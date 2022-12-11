@@ -24,8 +24,8 @@ impl ConfigurableFunctions<N> for Configuration {
         default_reproduction_chance(energy)
     }
 
-    fn mutatate(genes: &mut [f64; N]) {
-        default_mutation(genes, domain());
+    fn mutate(genes: &mut [f64; N]) {
+        default_mutation(genes, &domain());
     }
 }
 
