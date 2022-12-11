@@ -1,11 +1,13 @@
-use emas_rs::conf_functions::combat_functions::default_combat;
-use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
-use emas_rs::conf_functions::ConfigurableFunctions;
-use emas_rs::SystemBuilder;
 use std::process::Command;
 use std::thread::sleep;
 use std::time;
 use std::time::Instant;
+
+use emas_rs::conf_functions::combat_functions::default_combat;
+use emas_rs::conf_functions::mutation_functions::default_mutation;
+use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
+use emas_rs::conf_functions::ConfigurableFunctions;
+use emas_rs::SystemBuilder;
 
 const DOMAIN: [(f64, f64); 2] = [(-5.0, 5.0); 2];
 
@@ -32,6 +34,10 @@ impl ConfigurableFunctions<2> for Configuration {
 
     fn reproduction_chance(energy: u32) -> emas_rs::ReproductionChance {
         default_reproduction_chance(energy)
+    }
+
+    fn mutate(genes: &mut [f64; 2]) {
+        default_mutation(genes, &DOMAIN)
     }
 }
 
