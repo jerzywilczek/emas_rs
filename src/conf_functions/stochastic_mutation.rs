@@ -1,10 +1,14 @@
+use rand::rngs::ThreadRng;
+use rand::seq::IteratorRandom;
+use rand::{thread_rng, Rng};
 use std::f64::consts::PI;
 use std::marker::PhantomData;
-use rand::{Rng, thread_rng};
-use rand::seq::IteratorRandom;
-use rand::rngs::ThreadRng;
 
-pub fn stochastic_mutate<const N: usize, M: Mutation + Copy + Clone>(genes: &mut [f64; N], domain: &[(f64, f64); N], mutation: &M) {
+pub fn stochastic_mutate<const N: usize, M: Mutation>(
+    genes: &mut [f64; N],
+    domain: &[(f64, f64); N],
+    mutation: &M,
+) {
     let mut rng = thread_rng();
     let mut_chance = 0.5;
     let mut mutated_bits_count: usize = (mut_chance * genes.len() as f64) as usize;
@@ -23,13 +27,12 @@ pub fn stochastic_mutate<const N: usize, M: Mutation + Copy + Clone>(genes: &mut
     }
 }
 
-
 fn limit_gene_value(gene: &mut f64, range: &(f64, f64)) {
     *gene = gene.max((*range).0).min((*range).1);
 }
 
 pub trait Mutation {
-    fn mutate_gene(self, gene: &mut f64, range: &(f64, f64), rng: &mut ThreadRng);
+    fn mutate_gene(&self, gene: &mut T, range: &(T, T), rng: &mut ThreadRng);
 }
 
 #[derive(Clone, Copy)]
@@ -38,7 +41,7 @@ pub struct AddXMutation {
 }
 
 impl Mutation for AddXMutation {
-    fn mutate_gene(self, gene: &mut f64, _range: &(f64, f64), _rng: &mut ThreadRng) {
+    fn mutate_gene(&self, gene: &mut f64, _range: &(f64, f64), _rng: &mut ThreadRng) {
         *gene += self.x;
     }
 }
@@ -49,7 +52,7 @@ pub struct FixedRangeMutation {
 }
 
 impl Mutation for FixedRangeMutation {
-    fn mutate_gene(self, gene: &mut f64, range: &(f64, f64), rng: &mut ThreadRng) {
+    fn mutate_gene(&self, gene: &mut f64, range: &(f64, f64), rng: &mut ThreadRng) {
         *gene += self.mutation_range * (-1.0 + rng.gen::<f64>() * 2.0);
         limit_gene_value(gene, range);
     }
@@ -61,7 +64,7 @@ pub struct NormalMutation {
 }
 
 impl Mutation for NormalMutation {
-    fn mutate_gene(self, gene: &mut f64, range: &(f64, f64), rng: &mut ThreadRng) {
+    fn mutate_gene(&self, gene: &mut f64, range: &(f64, f64), rng: &mut ThreadRng) {
         *gene += self.mutation_range + (PI * (rng.gen::<f64>() - 0.5)).tan();
         limit_gene_value(gene, range);
     }
@@ -75,13 +78,13 @@ pub struct NormalMicroMacroMutation {
 }
 
 impl Mutation for NormalMicroMacroMutation {
-    fn mutate_gene(self, gene: &mut f64, range: &(f64, f64), rng: &mut ThreadRng) {
+    fn mutate_gene(&self, gene: &mut f64, range: &(f64, f64), rng: &mut ThreadRng) {
         let rand = rng.gen::<f64>();
         let mut mutation_range = self.mutation_range;
 
         if rand < self.double_threshold.0 {
             mutation_range *= self.micro_macro_factor;
-        } else if  rand < self.double_threshold.1 {
+        } else if rand < self.double_threshold.1 {
             mutation_range /= self.micro_macro_factor;
         }
 
