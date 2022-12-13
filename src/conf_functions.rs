@@ -4,6 +4,7 @@ pub mod combat_functions;
 pub mod fitness_functions;
 pub mod mutation_functions;
 pub mod reproduction_chance_functions;
+pub mod stochastic_mutation;
 
 pub trait ConfigurableFunctions<const N: usize> {
     const DOMAIN: [(f64, f64); N];
