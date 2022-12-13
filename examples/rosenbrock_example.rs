@@ -6,6 +6,7 @@ use std::time::Instant;
 use emas_rs::conf_functions::combat_functions::default_combat;
 use emas_rs::conf_functions::mutation_functions::default_mutation;
 use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
+use emas_rs::conf_functions::topologies::ring;
 use emas_rs::conf_functions::ConfigurableFunctions;
 use emas_rs::SystemBuilder;
 
@@ -38,6 +39,10 @@ impl ConfigurableFunctions<2> for Configuration {
 
     fn mutate(genes: &mut [f64; 2]) {
         default_mutation(genes, &DOMAIN)
+    }
+
+    fn topology() -> [Vec<usize>; 2] {
+        ring()
     }
 }
 

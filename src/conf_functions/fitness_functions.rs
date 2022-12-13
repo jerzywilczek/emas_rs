@@ -57,9 +57,7 @@ mod tests {
     #[test]
     fn rastrigin_correct_values() {
         // global minimum at (0, ..., 0)
-
         assert_eq!(rastrigin(&[0.0, 0.0]), 0.0);
-
         assert_eq!(rastrigin(&[0.0; 5]), 0.0);
         assert_eq!(rastrigin(&[0.0; 8]), 0.0);
 

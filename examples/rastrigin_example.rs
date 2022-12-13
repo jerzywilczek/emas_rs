@@ -2,6 +2,7 @@ use emas_rs::conf_functions::combat_functions::default_combat;
 use emas_rs::conf_functions::fitness_functions::rastrigin_fitness::{domain, rastrigin};
 use emas_rs::conf_functions::mutation_functions::default_mutation;
 use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
+use emas_rs::conf_functions::topologies::ring;
 use emas_rs::conf_functions::ConfigurableFunctions;
 use emas_rs::SystemBuilder;
 use std::time::Instant;
@@ -26,6 +27,10 @@ impl ConfigurableFunctions<N> for Configuration {
 
     fn mutate(genes: &mut [f64; N]) {
         default_mutation(genes, &domain());
+    }
+
+    fn topology() -> [Vec<usize>; N] {
+        ring()
     }
 }
 
