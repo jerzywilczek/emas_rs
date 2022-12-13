@@ -16,20 +16,30 @@ pub struct RealConfiguration<const N: usize, R: rand::Rng> {
     mutate_gene: fn(value: &mut f64, domain: &(f64, f64), rng: &mut ThreadRng),
 }
 
-impl<const N: usize, R: rand::Rng> RealConfiguration<N, R> {
-    pub fn fitness(&self, args: &[f64; N]) -> f64 {
+pub trait Configuration <const N: usize, R: rand::Rng>{
+    fn fitness(&self, args: &[f64; N]) -> f64;
+
+    fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
+
+    fn reproduction_chance(&self, energy: u32) -> ReproductionChance;
+
+    fn mutate(&self, genes: &mut [f64; N], rng: &mut R);
+}
+
+impl Configuration<{ N }, R> for RealConfiguration<{ N }, R> {
+    fn fitness(&self, args: &[f64; N]) -> f64 {
         self.fitness(args)
     }
 
-    pub fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
+    fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
         self.combat(this_agent_fitness, other_agent_fitness)
     }
 
-    pub fn reproduction_chance(&self, energy: u32) -> ReproductionChance {
+    fn reproduction_chance(&self, energy: u32) -> ReproductionChance {
         self.reproduction_chance(energy)
     }
 
-    pub fn mutate(&self, genes: &mut [f64; N], rng: &mut R) {
+    fn mutate(&self, genes: &mut [f64; N], rng: &mut R) {
         let picked_genes = self.pick_genes(genes, self.domain, rng);
 
         for (mut gene, gene_domain) in picked_genes {
