@@ -58,8 +58,6 @@ impl Mutation for FixedRangeMutation {
 
 #[derive(Clone, Copy)]
 pub struct NormalMutation {
-    thresholds: (f64, f64),
-    micro_macro_factor: f64,
     mutation_range: f64,
 }
 
