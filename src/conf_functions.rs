@@ -1,3 +1,4 @@
+use rand::rngs::ThreadRng;
 use crate::ReproductionChance;
 
 pub mod combat_functions;
@@ -5,11 +6,34 @@ pub mod fitness_functions;
 pub mod mutation_functions;
 pub mod reproduction_chance_functions;
 
-pub trait ConfigurableFunctions<const N: usize> {
-    const DOMAIN: [(f64, f64); N];
+pub struct RealConfiguration<const N: usize, R: rand::Rng> {
+    /// TODO!
+    domain: [(f64, f64); N],
+    fitness: fn(args: &[f64; N]) -> f64,
+    combat: fn(this_agent_fitness: f64, other_agent_fitness: f64) -> f64,
+    reproduction_chance: fn(energy: u32) -> ReproductionChance,
+    pick_genes: for<'a> fn(genes: &'a mut [f64; N], domain: &'a [(f64, f64); N], rng: &mut R) -> Vec<(&'a mut f64, &'a(f64, f64))>,
+    mutate_gene: fn(value: &mut f64, domain: &(f64, f64), rng: &mut ThreadRng),
+}
 
-    fn fitness(args: &[f64; N]) -> f64;
-    fn combat(this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
-    fn reproduction_chance(energy: u32) -> ReproductionChance;
-    fn mutate(genes: &mut [f64; N]);
+impl<const N: usize, R: rand::Rng> RealConfiguration<N, R> {
+    pub fn fitness(&self, args: &[f64; N]) -> f64 {
+        self.fitness(args)
+    }
+
+    pub fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
+        self.combat(this_agent_fitness, other_agent_fitness)
+    }
+
+    pub fn reproduction_chance(&self, energy: u32) -> ReproductionChance {
+        self.reproduction_chance(energy)
+    }
+
+    pub fn mutate(&self, genes: &mut [f64; N], rng: &mut R) {
+        let picked_genes = self.pick_genes(genes, self.domain, rng);
+
+        for (mut gene, gene_domain) in picked_genes {
+            self.mutate_gene(gene, gene_domain, rng)
+        }
+    }
 }
