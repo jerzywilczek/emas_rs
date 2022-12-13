@@ -51,9 +51,9 @@ pub mod ackley_fitness {
 mod tests {
     use crate::conf_functions::fitness_functions::*;
     use ackley_fitness::ackley;
+    use assert_approx_eq::assert_approx_eq;
     use rastrigin_fitness::rastrigin;
     use rosenbrock_fitness::rosenbrock;
-    use assert_approx_eq::assert_approx_eq;
 
     #[test]
     fn rastrigin_correct_values() {
