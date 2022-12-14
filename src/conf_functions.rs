@@ -2,6 +2,8 @@ use crate::ReproductionChance;
 
 pub mod combat_functions;
 pub mod fitness_functions;
+pub mod gene_mutations;
+pub mod gene_pickers;
 pub mod mutation_functions;
 pub mod reproduction_chance_functions;
 
@@ -18,8 +20,8 @@ pub struct RealConfiguration<const N: usize> {
         genes: &'a mut [f64; N],
         domain: &'a [(f64, f64); N],
         rng: &mut super::R,
-    ) -> Vec<(&'a mut f64, &'a (f64, f64))>,
-    pub mutate_gene: fn(value: &mut f64, domain: &(f64, f64), rng: &mut super::R),
+    ) -> Vec<(&'a mut f64, (f64, f64))>,
+    pub mutate_gene: fn(value: &mut f64, domain: (f64, f64), rng: &mut super::R),
 }
 
 pub trait Configuration<const N: usize, T> {
@@ -56,6 +58,6 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
     }
 
     fn random_genes(&self, _rng: &mut super::R) -> [f64; N] {
-        todo!()
+        [1.1; N] // FIXME
     }
 }

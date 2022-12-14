@@ -1,12 +1,14 @@
+use rand::thread_rng;
 use std::process::Command;
 use std::thread::sleep;
 use std::time;
 use std::time::Instant;
 
 use emas_rs::conf_functions::combat_functions::default_combat;
-use emas_rs::conf_functions::mutation_functions::default_mutation;
+use emas_rs::conf_functions::gene_mutations::normal_mutation;
+use emas_rs::conf_functions::gene_pickers::stochastic_pick;
 use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
-use emas_rs::conf_functions::{Configuration, RealConfiguration};
+use emas_rs::conf_functions::RealConfiguration;
 use emas_rs::SystemBuilder;
 
 const DOMAIN: [(f64, f64); 2] = [(-5.0, 5.0); 2];
@@ -19,39 +21,15 @@ fn rosenbrock_2d(args: &[f64; 2]) -> f64 {
     (a - x).powi(2) + b * (y - x.powi(2)).powi(2)
 }
 
-
-
-struct LocalConfiguration;
-
-impl ConfigurableFunctions<2> for Configuration {
-    const DOMAIN: [(f64, f64); 2] = DOMAIN;
-
-    fn fitness(args: &[f64; 2]) -> f64 {
-        rosenbrock_2d(args)
-    }
-
-    fn combat(this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
-        default_combat(this_agent_fitness, other_agent_fitness)
-    }
-
-    fn reproduction_chance(energy: u32) -> emas_rs::ReproductionChance {
-        default_reproduction_chance(energy)
-    }
-
-    fn mutate(genes: &mut [f64; 2]) {
-        default_mutation(genes, &DOMAIN)
-    }
-}
-
 fn main() {
     let rosenbrock2d_configuration = RealConfiguration {
         domain: DOMAIN,
         fitness: rosenbrock_2d,
         combat: default_combat,
         reproduction_chance: default_reproduction_chance,
-        pick_genes: ,
-        mutate_gene: todo!(),
-    }
+        pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
+        mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
+    };
 
     let mut list_dir = Command::new("python3");
 
@@ -61,9 +39,9 @@ fn main() {
         .spawn()
         .expect("process failed to execute");
     sleep(time::Duration::from_millis(2000));
-    let mut system = SystemBuilder::<2, Configuration>::new()
+    let mut system = SystemBuilder::new(rosenbrock2d_configuration)
         .steps(1_000_000)
-        .build();
+        .build(thread_rng());
     let t0 = Instant::now();
     let sol = system.run();
     let t0 = t0.elapsed().as_secs_f32();

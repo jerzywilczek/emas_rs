@@ -1,6 +1,5 @@
 use rand::prelude::SliceRandom;
-use rand::SeedableRng;
-use rand::{seq::IteratorRandom, thread_rng, Rng};
+use rand::{seq::IteratorRandom, thread_rng, Rng, SeedableRng};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
@@ -440,7 +439,7 @@ impl<const N: usize, T: Gene> System<N, T> {
 
 pub struct SystemBuilder<
     const N: usize,
-    R: SeedableRng + Rng,
+    R: Rng,
     T: Gene,
     C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
 > {
@@ -462,7 +461,7 @@ pub struct SystemBuilder<
 impl<
         const N: usize,
         T: Gene,
-        R: SeedableRng + Rng,
+        R: Rng,
         C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
     > SystemBuilder<N, R, T, C>
 {
@@ -535,7 +534,7 @@ impl<
         self
     }
 
-    pub fn build(self, mut rng: impl Rng) -> System<N, T> {
+    pub fn build(self, mut rng: R) -> System<N, T> {
         // for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
         //     if d_min > d_max {
         //         panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
