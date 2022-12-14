@@ -6,7 +6,7 @@ use std::time::Instant;
 use emas_rs::conf_functions::combat_functions::default_combat;
 use emas_rs::conf_functions::mutation_functions::default_mutation;
 use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
-use emas_rs::conf_functions::ConfigurableFunctions;
+use emas_rs::conf_functions::{Configuration, RealConfiguration};
 use emas_rs::SystemBuilder;
 
 const DOMAIN: [(f64, f64); 2] = [(-5.0, 5.0); 2];
@@ -19,7 +19,9 @@ fn rosenbrock_2d(args: &[f64; 2]) -> f64 {
     (a - x).powi(2) + b * (y - x.powi(2)).powi(2)
 }
 
-struct Configuration;
+
+
+struct LocalConfiguration;
 
 impl ConfigurableFunctions<2> for Configuration {
     const DOMAIN: [(f64, f64); 2] = DOMAIN;
@@ -42,6 +44,15 @@ impl ConfigurableFunctions<2> for Configuration {
 }
 
 fn main() {
+    let rosenbrock2d_configuration = RealConfiguration {
+        domain: DOMAIN,
+        fitness: rosenbrock_2d,
+        combat: default_combat,
+        reproduction_chance: default_reproduction_chance,
+        pick_genes: ,
+        mutate_gene: todo!(),
+    }
+
     let mut list_dir = Command::new("python3");
 
     // Execute `ls` in the current directory of the program.
