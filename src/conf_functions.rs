@@ -17,9 +17,9 @@ pub struct RealConfiguration<const N: usize> {
     pub pick_genes: for<'a> fn(
         genes: &'a mut [f64; N],
         domain: &'a [(f64, f64); N],
-        rng: &mut rand_chacha::ChaCha12Rng,
+        rng: &mut super::R,
     ) -> Vec<(&'a mut f64, &'a (f64, f64))>,
-    pub mutate_gene: fn(value: &mut f64, domain: &(f64, f64), rng: &mut rand_chacha::ChaCha12Rng),
+    pub mutate_gene: fn(value: &mut f64, domain: &(f64, f64), rng: &mut super::R),
 }
 
 pub trait Configuration<const N: usize, T> {
@@ -29,9 +29,9 @@ pub trait Configuration<const N: usize, T> {
 
     fn reproduction_chance(&self, energy: u32) -> ReproductionChance;
 
-    fn mutate(&self, genes: &mut [T; N], rng: &mut rand_chacha::ChaCha12Rng);
+    fn mutate(&self, genes: &mut [T; N], rng: &mut super::R);
 
-    fn random_genes(&self, rng: &mut rand_chacha::ChaCha12Rng) -> [T; N];
+    fn random_genes(&self, rng: &mut super::R) -> [T; N];
 }
 
 impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
@@ -47,7 +47,7 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         (self.reproduction_chance)(energy)
     }
 
-    fn mutate(&self, genes: &mut [f64; N], rng: &mut rand_chacha::ChaCha12Rng) {
+    fn mutate(&self, genes: &mut [f64; N], rng: &mut super::R) {
         let picked_genes = (self.pick_genes)(genes, &self.domain, rng);
 
         for (value, domain) in picked_genes {
@@ -55,7 +55,7 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         }
     }
 
-    fn random_genes(&self, _rng: &mut rand_chacha::ChaCha12Rng) -> [f64; N] {
+    fn random_genes(&self, _rng: &mut super::R) -> [f64; N] {
         todo!()
     }
 }
