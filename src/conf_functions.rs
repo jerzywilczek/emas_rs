@@ -58,6 +58,6 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
     }
 
     fn random_genes(&self, _rng: &mut super::R) -> [f64; N] {
-        [1.1; N]
+[1.1; N] // FIXME
     }
 }
