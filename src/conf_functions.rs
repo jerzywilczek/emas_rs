@@ -1,5 +1,7 @@
 use crate::{ReproductionChance, R};
 
+use std::fmt::Debug;
+
 pub mod combat_functions;
 pub mod fitness_functions;
 pub mod gene_mutations;
@@ -29,7 +31,13 @@ pub struct RealConfiguration<const N: usize> {
     pub recombine: RecombinationFn<N>,
 }
 
-pub trait Configuration<const N: usize, T> {
+impl<const N: usize> Debug for RealConfiguration<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RealConfiguration").finish()
+    }
+}
+
+pub trait Configuration<const N: usize, T>: Debug {
     fn fitness(&self, args: &[T; N]) -> f64;
 
     fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
