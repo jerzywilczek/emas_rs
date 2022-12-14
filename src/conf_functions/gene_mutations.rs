@@ -33,6 +33,6 @@ pub fn normal_micro_macro_mutation(
         range /= micro_macro_factor;
     }
 
-    *gene += mutation_range * (PI * (rng.gen::<f64>() - 0.5)).tan();
+    *gene += range * (PI * (rng.gen::<f64>() - 0.5)).tan();
     limit_gene_value(gene, domain);
 }
