@@ -1,4 +1,3 @@
-use conf_functions::Configuration;
 use rand::prelude::SliceRandom;
 use rand::SeedableRng;
 use rand::{seq::IteratorRandom, thread_rng, Rng};
@@ -13,6 +12,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub mod conf_functions;
+
+type Configuration<const N: usize, T, R> =
+    dyn conf_functions::Configuration<N, T, R> + Send + Sync + 'static;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
@@ -44,7 +46,7 @@ impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
     fn rand_agent(
         starting_energy: u32,
         id: AgentId,
-        conf: &dyn Configuration<N, T, R>,
+        conf: &Configuration<N, T, R>,
         rng: &mut R,
     ) -> Agent<N, T, R> {
         let genes = conf.random_genes(rng);
@@ -63,7 +65,7 @@ impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
         energy_passed_percent: f64,
         ch1_id: AgentId,
         ch2_id: AgentId,
-        conf: &dyn Configuration<N, T, R>,
+        conf: &Configuration<N, T, R>,
         rng: &mut R,
     ) -> (Agent<N, T, R>, Agent<N, T, R>) {
         let par1_en = (energy_passed_percent * self.energy as f64) as u32;
@@ -105,7 +107,7 @@ impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
         (ch1, ch2)
     }
 
-    fn mutate(&mut self, conf: &dyn Configuration<N, T, R>, rng: &mut R) {
+    fn mutate(&mut self, conf: &Configuration<N, T, R>, rng: &mut R) {
         conf.mutate(&mut self.genes, rng);
     }
 
@@ -113,7 +115,7 @@ impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
         &mut self,
         other: &mut Agent<N, T, R>,
         energy: u32,
-        conf: &dyn Configuration<N, T, R>,
+        conf: &Configuration<N, T, R>,
         rng: &mut R,
     ) {
         let (winner, looser) = if rng.gen::<f64>() < conf.combat(self.fitness, other.fitness) {
@@ -150,27 +152,22 @@ enum Action {
 }
 
 // #[derive(Debug)]
-struct Island<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> {
+struct Island<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> {
     _id: usize,
     agents: HashMap<AgentId, Agent<N, T, R>>,
     migration_queue: Vec<Agent<N, T, R>>,
     last_agent_id: usize,
     historical_best: Agent<N, T, R>,
-    conf: Arc<dyn Configuration<N, T, R>>,
+    conf: Arc<Configuration<N, T, R>>,
     rng: R,
 }
 
-unsafe impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> Send
-    for Island<N, T, R>
-{
-}
-
-impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> Island<N, T, R> {
+impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> Island<N, T, R> {
     fn new(
         agents_amount: usize,
         agent_energy: u32,
         id: usize,
-        conf: Arc<dyn Configuration<N, T, R>>,
+        conf: Arc<Configuration<N, T, R>>,
         rng: impl Rng,
     ) -> Island<N, T, R> {
         let mut rng = R::from_rng(rng).unwrap();
@@ -306,7 +303,7 @@ impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> Isla
 }
 
 // #[derive(Debug)]
-pub struct System<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> {
+pub struct System<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> {
     islands: Vec<Island<N, T, R>>,
     steps: u32,
     energy_reproduction_percent: f64,
@@ -316,7 +313,7 @@ pub struct System<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng
     migrations_elite_amount: usize,
     logs: Vec<String>,
     log_period: Duration,
-    conf: Arc<dyn Configuration<N, T, R>>,
+    conf: Arc<Configuration<N, T, R>>,
 }
 
 impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> System<N, T, R> {
@@ -443,9 +440,9 @@ impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> Syst
 
 pub struct SystemBuilder<
     const N: usize,
-    R: SeedableRng + Rng + Send,
+    R: SeedableRng + Rng,
     T: Default + Copy + Send,
-    C: Configuration<N, T, R> + 'static,
+    C: conf_functions::Configuration<N, T, R> + Send + Sync + 'static,
 > {
     island_amount: usize,
     steps: u32,
@@ -465,8 +462,8 @@ pub struct SystemBuilder<
 impl<
         const N: usize,
         T: Default + Copy + Send,
-        R: SeedableRng + Rng + Send,
-        C: Configuration<N, T, R> + 'static,
+        R: SeedableRng + Rng,
+        C: conf_functions::Configuration<N, T, R> + Send + Sync + 'static,
     > SystemBuilder<N, R, T, C>
 {
     pub fn new(conf: C) -> Self {
