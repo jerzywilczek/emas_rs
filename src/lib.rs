@@ -1,6 +1,7 @@
 use rand::prelude::SliceRandom;
 use rand::SeedableRng;
 use rand::{seq::IteratorRandom, thread_rng, Rng};
+use rand_chacha::ChaCha12Rng;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
@@ -13,61 +14,61 @@ use std::time::{Duration, Instant};
 
 pub mod conf_functions;
 
-type Configuration<const N: usize, T, R> =
-    dyn conf_functions::Configuration<N, T, R> + Send + Sync + 'static;
+type Configuration<const N: usize, T> =
+    dyn conf_functions::Configuration<N, T> + Send + Sync + 'static;
+
+pub trait Gene: Default + Copy + Send {}
+impl<T: Default + Copy + Send> Gene for T {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
 
 // #[derive(Debug)]
-struct Agent<const N: usize, T: Default + Copy + Send, R: Rng> {
+struct Agent<const N: usize, T: Gene> {
     genes: [T; N],
     energy: u32,
     id: AgentId,
     fitness: f64,
-    phantom: PhantomData<R>,
 }
 
-impl<const N: usize, T: Default + Copy + Send, R: Rng> Clone for Agent<N, T, R> {
+impl<const N: usize, T: Gene> Clone for Agent<N, T> {
     fn clone(&self) -> Self {
         Self {
             genes: self.genes,
             energy: self.energy,
             id: self.id,
             fitness: self.fitness,
-            phantom: self.phantom,
         }
     }
 }
 
 pub struct ReproductionChance(pub f64);
 
-impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
+impl<const N: usize, T: Gene> Agent<N, T> {
     fn rand_agent(
         starting_energy: u32,
         id: AgentId,
-        conf: &Configuration<N, T, R>,
-        rng: &mut R,
-    ) -> Agent<N, T, R> {
+        conf: &Configuration<N, T>,
+        rng: &mut ChaCha12Rng,
+    ) -> Agent<N, T> {
         let genes = conf.random_genes(rng);
         Agent {
             genes,
             energy: starting_energy,
             id,
             fitness: conf.fitness(&genes),
-            phantom: PhantomData,
         }
     }
 
     fn reproduce(
         &mut self,
-        other: &mut Agent<N, T, R>,
+        other: &mut Agent<N, T>,
         energy_passed_percent: f64,
         ch1_id: AgentId,
         ch2_id: AgentId,
-        conf: &Configuration<N, T, R>,
-        rng: &mut R,
-    ) -> (Agent<N, T, R>, Agent<N, T, R>) {
+        conf: &Configuration<N, T>,
+        rng: &mut ChaCha12Rng,
+    ) -> (Agent<N, T>, Agent<N, T>) {
         let par1_en = (energy_passed_percent * self.energy as f64) as u32;
         let par2_en = (energy_passed_percent * other.energy as f64) as u32;
         self.energy -= par1_en;
@@ -78,14 +79,12 @@ impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
             id: ch1_id,
             genes: [T::default(); N],
             fitness: 0.0,
-            phantom: PhantomData,
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
             id: ch2_id,
             genes: [T::default(); N],
             fitness: 0.0,
-            phantom: PhantomData,
         };
 
         let cut_point = thread_rng().gen_range(0..self.genes.len());
@@ -107,15 +106,15 @@ impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
         (ch1, ch2)
     }
 
-    fn mutate(&mut self, conf: &Configuration<N, T, R>, rng: &mut R) {
+    fn mutate(&mut self, conf: &Configuration<N, T>, rng: &mut ChaCha12Rng) {
         conf.mutate(&mut self.genes, rng);
     }
 
-    fn combat(
+    fn combat<R: Rng>(
         &mut self,
-        other: &mut Agent<N, T, R>,
+        other: &mut Agent<N, T>,
         energy: u32,
-        conf: &Configuration<N, T, R>,
+        conf: &Configuration<N, T>,
         rng: &mut R,
     ) {
         let (winner, looser) = if rng.gen::<f64>() < conf.combat(self.fitness, other.fitness) {
@@ -138,13 +137,13 @@ impl<const N: usize, T: Default + Copy + Send, R: Rng> Agent<N, T, R> {
     }
 }
 
-impl<const N: usize, T: Default + Copy + Send, R: Rng> PartialEq for Agent<N, T, R> {
+impl<const N: usize, T: Gene> PartialEq for Agent<N, T> {
     fn eq(&self, other: &Self) -> bool {
         self.id.0 == other.id.0 && self.id.1 == other.id.1
     }
 }
 
-impl<const N: usize, T: Default + Copy + Send, R: Rng> Eq for Agent<N, T, R> {}
+impl<const N: usize, T: Gene> Eq for Agent<N, T> {}
 
 enum Action {
     Combat,
@@ -152,26 +151,26 @@ enum Action {
 }
 
 // #[derive(Debug)]
-struct Island<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> {
+struct Island<const N: usize, T: Gene> {
     _id: usize,
-    agents: HashMap<AgentId, Agent<N, T, R>>,
-    migration_queue: Vec<Agent<N, T, R>>,
+    agents: HashMap<AgentId, Agent<N, T>>,
+    migration_queue: Vec<Agent<N, T>>,
     last_agent_id: usize,
-    historical_best: Agent<N, T, R>,
-    conf: Arc<Configuration<N, T, R>>,
-    rng: R,
+    historical_best: Agent<N, T>,
+    conf: Arc<Configuration<N, T>>,
+    rng: rand_chacha::ChaCha12Rng,
 }
 
-impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> Island<N, T, R> {
+impl<const N: usize, T: Gene> Island<N, T> {
     fn new(
         agents_amount: usize,
         agent_energy: u32,
         id: usize,
-        conf: Arc<Configuration<N, T, R>>,
+        conf: Arc<Configuration<N, T>>,
         rng: impl Rng,
-    ) -> Island<N, T, R> {
-        let mut rng = R::from_rng(rng).unwrap();
-        let agents: HashMap<AgentId, Agent<N, T, R>> = (0..agents_amount)
+    ) -> Island<N, T> {
+        let mut rng = rand_chacha::ChaCha12Rng::from_rng(rng).unwrap();
+        let agents: HashMap<AgentId, Agent<N, T>> = (0..agents_amount)
             .map(|a_id| {
                 (
                     AgentId(id, a_id),
@@ -198,14 +197,14 @@ impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> Island<N, T
     }
 
     fn get_pair_mut<'a>(
-        map: &'a mut HashMap<AgentId, Agent<N, T, R>>,
+        map: &'a mut HashMap<AgentId, Agent<N, T>>,
         a1_id: &AgentId,
         a2_id: &AgentId,
-    ) -> (&'a mut Agent<N, T, R>, &'a mut Agent<N, T, R>) {
+    ) -> (&'a mut Agent<N, T>, &'a mut Agent<N, T>) {
         assert_ne!(a1_id, a2_id);
 
-        let a1 = map.get_mut(a1_id).unwrap() as *mut Agent<N, T, R>;
-        let a2 = map.get_mut(a2_id).unwrap() as *mut Agent<N, T, R>;
+        let a1 = map.get_mut(a1_id).unwrap() as *mut Agent<N, T>;
+        let a2 = map.get_mut(a2_id).unwrap() as *mut Agent<N, T>;
         unsafe { (&mut *a1, &mut *a2) }
     }
 
@@ -303,8 +302,8 @@ impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> Island<N, T
 }
 
 // #[derive(Debug)]
-pub struct System<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng> {
-    islands: Vec<Island<N, T, R>>,
+pub struct System<const N: usize, T: Gene> {
+    islands: Vec<Island<N, T>>,
     steps: u32,
     energy_reproduction_percent: f64,
     energy_combat: u32,
@@ -313,10 +312,10 @@ pub struct System<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng
     migrations_elite_amount: usize,
     logs: Vec<String>,
     log_period: Duration,
-    conf: Arc<Configuration<N, T, R>>,
+    conf: Arc<Configuration<N, T>>,
 }
 
-impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> System<N, T, R> {
+impl<const N: usize, T: Gene> System<N, T> {
     fn log(&mut self, start: Instant) -> String {
         let timestamp = start.elapsed().as_secs_f32();
         let historical_best = self.conf.fitness(&self.best_sol());
@@ -441,8 +440,8 @@ impl<const N: usize, T: Default + Copy + Send, R: SeedableRng + Rng + Send> Syst
 pub struct SystemBuilder<
     const N: usize,
     R: SeedableRng + Rng,
-    T: Default + Copy + Send,
-    C: conf_functions::Configuration<N, T, R> + Send + Sync + 'static,
+    T: Gene,
+    C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
 > {
     island_amount: usize,
     steps: u32,
@@ -461,9 +460,9 @@ pub struct SystemBuilder<
 
 impl<
         const N: usize,
-        T: Default + Copy + Send,
+        T: Gene,
         R: SeedableRng + Rng,
-        C: conf_functions::Configuration<N, T, R> + Send + Sync + 'static,
+        C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
     > SystemBuilder<N, R, T, C>
 {
     pub fn new(conf: C) -> Self {
@@ -535,7 +534,7 @@ impl<
         self
     }
 
-    pub fn build(self, mut rng: impl Rng) -> System<N, T, R> {
+    pub fn build(self, mut rng: impl Rng) -> System<N, T> {
         // for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
         //     if d_min > d_max {
         //         panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
