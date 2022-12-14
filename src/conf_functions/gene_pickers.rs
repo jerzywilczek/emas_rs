@@ -1,6 +1,6 @@
 use crate::R;
 use rand::seq::IteratorRandom;
-use rand::{Rng};
+use rand::Rng;
 
 pub fn stochastic_pick<'a, const N: usize>(
     genes: &'a mut [f64; N],

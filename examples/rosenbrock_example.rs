@@ -1,15 +1,14 @@
+use rand::thread_rng;
 use std::process::Command;
 use std::thread::sleep;
 use std::time;
 use std::time::Instant;
-use rand::thread_rng;
 
 use emas_rs::conf_functions::combat_functions::default_combat;
-use emas_rs::conf_functions::mutation_functions::default_mutation;
-use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
-use emas_rs::conf_functions::{Configuration, RealConfiguration};
-use emas_rs::conf_functions::gene_pickers::stochastic_pick;
 use emas_rs::conf_functions::gene_mutations::normal_mutation;
+use emas_rs::conf_functions::gene_pickers::stochastic_pick;
+use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
+use emas_rs::conf_functions::RealConfiguration;
 use emas_rs::SystemBuilder;
 
 const DOMAIN: [(f64, f64); 2] = [(-5.0, 5.0); 2];
@@ -21,7 +20,6 @@ fn rosenbrock_2d(args: &[f64; 2]) -> f64 {
 
     (a - x).powi(2) + b * (y - x.powi(2)).powi(2)
 }
-
 
 fn main() {
     let rosenbrock2d_configuration = RealConfiguration {

@@ -1,5 +1,5 @@
 use crate::R;
-use rand::{Rng};
+use rand::Rng;
 use std::f64::consts::PI;
 
 fn limit_gene_value(value: &mut f64, range: (f64, f64)) {
