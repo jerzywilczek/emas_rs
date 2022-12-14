@@ -7,20 +7,20 @@ pub mod gene_pickers;
 pub mod mutation_functions;
 pub mod reproduction_chance_functions;
 
-pub type FitnessFn<const N: usize, T> = fn(&[T; N]) -> f64;
+type GenesForMutation<'a> = Vec<(&'a mut f64, (f64, f64))>;
+
+type PickGenesFn<const N: usize> = for<'a> fn(
+    genes: &'a mut [f64; N],
+    domain: &[(f64, f64); N],
+    rng: &mut super::R,
+) -> GenesForMutation<'a>;
 
 pub struct RealConfiguration<const N: usize> {
-    /// TODO!
     pub domain: [(f64, f64); N],
     pub fitness: fn(args: &[f64; N]) -> f64,
     pub combat: fn(this_agent_fitness: f64, other_agent_fitness: f64) -> f64,
     pub reproduction_chance: fn(energy: u32) -> ReproductionChance,
-    #[allow(clippy::type_complexity)]
-    pub pick_genes: for<'a> fn(
-        genes: &'a mut [f64; N],
-        domain: &'a [(f64, f64); N],
-        rng: &mut super::R,
-    ) -> Vec<(&'a mut f64, (f64, f64))>,
+    pub pick_genes: PickGenesFn<N>,
     pub mutate_gene: fn(value: &mut f64, domain: (f64, f64), rng: &mut super::R),
 }
 
