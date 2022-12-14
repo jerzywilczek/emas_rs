@@ -1,12 +1,16 @@
-use rand::seq::IteratorRandom;
-use rand::{thread_rng, Rng};
-use std::f64::consts::PI;
-use std::marker::PhantomData;
 use crate::R;
+use rand::seq::IteratorRandom;
+use rand::{Rng};
 
-pub fn stochastic_pick<const N: usize>(genes: &mut [f64; N], domain: &[(f64, f64); N], mutation_chance: f64, rng: &mut R) -> Vec<(&mut f64, (f64, f64))> {
+pub fn stochastic_pick<'a, const N: usize>(
+    genes: &'a mut [f64; N],
+    domain: &[(f64, f64); N],
+    rng: &mut R,
+    mutation_chance: f64,
+) -> Vec<(&'a mut f64, (f64, f64))> {
     let mut mutated_bits_count: usize = (mutation_chance * genes.len() as f64) as usize;
-    let chance_for_extra_bit: f64 = (mutation_chance * genes.len() as f64) - mutated_bits_count as f64;
+    let chance_for_extra_bit: f64 =
+        (mutation_chance * genes.len() as f64) - mutated_bits_count as f64;
     if rng.gen::<f64>() < chance_for_extra_bit {
         mutated_bits_count += 1;
     }

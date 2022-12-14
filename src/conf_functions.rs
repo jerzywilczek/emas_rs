@@ -2,10 +2,10 @@ use crate::ReproductionChance;
 
 pub mod combat_functions;
 pub mod fitness_functions;
+pub mod gene_mutations;
+pub mod gene_pickers;
 pub mod mutation_functions;
 pub mod reproduction_chance_functions;
-pub mod gene_pickers;
-pub mod gene_mutations;
 
 pub type FitnessFn<const N: usize, T> = fn(&[T; N]) -> f64;
 
