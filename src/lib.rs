@@ -1,7 +1,6 @@
 use rand::prelude::SliceRandom;
 use rand::SeedableRng;
 use rand::{seq::IteratorRandom, thread_rng, Rng};
-use rand_chacha::ChaCha12Rng;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
@@ -13,6 +12,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub mod conf_functions;
+
+type R = rand_chacha::ChaCha12Rng;
 
 type Configuration<const N: usize, T> =
     dyn conf_functions::Configuration<N, T> + Send + Sync + 'static;
@@ -49,7 +50,7 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         starting_energy: u32,
         id: AgentId,
         conf: &Configuration<N, T>,
-        rng: &mut ChaCha12Rng,
+        rng: &mut R,
     ) -> Agent<N, T> {
         let genes = conf.random_genes(rng);
         Agent {
@@ -67,7 +68,7 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         ch1_id: AgentId,
         ch2_id: AgentId,
         conf: &Configuration<N, T>,
-        rng: &mut ChaCha12Rng,
+        rng: &mut R,
     ) -> (Agent<N, T>, Agent<N, T>) {
         let par1_en = (energy_passed_percent * self.energy as f64) as u32;
         let par2_en = (energy_passed_percent * other.energy as f64) as u32;
@@ -106,7 +107,7 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         (ch1, ch2)
     }
 
-    fn mutate(&mut self, conf: &Configuration<N, T>, rng: &mut ChaCha12Rng) {
+    fn mutate(&mut self, conf: &Configuration<N, T>, rng: &mut R) {
         conf.mutate(&mut self.genes, rng);
     }
 
@@ -158,7 +159,7 @@ struct Island<const N: usize, T: Gene> {
     last_agent_id: usize,
     historical_best: Agent<N, T>,
     conf: Arc<Configuration<N, T>>,
-    rng: rand_chacha::ChaCha12Rng,
+    rng: R,
 }
 
 impl<const N: usize, T: Gene> Island<N, T> {
@@ -169,7 +170,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
         conf: Arc<Configuration<N, T>>,
         rng: impl Rng,
     ) -> Island<N, T> {
-        let mut rng = rand_chacha::ChaCha12Rng::from_rng(rng).unwrap();
+        let mut rng = R::from_rng(rng).unwrap();
         let agents: HashMap<AgentId, Agent<N, T>> = (0..agents_amount)
             .map(|a_id| {
                 (
