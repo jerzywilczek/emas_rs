@@ -2,7 +2,7 @@ use emas_rs::conf_functions::combat_functions::default_combat;
 use emas_rs::conf_functions::fitness_functions::rastrigin_fitness::{domain, rastrigin};
 use emas_rs::conf_functions::gene_mutations::normal_mutation;
 use emas_rs::conf_functions::gene_pickers::stochastic_pick;
-use emas_rs::conf_functions::recombination_functions::random_cut_point_reproduce;
+use emas_rs::conf_functions::recombination_functions::random_cut_point_recombine;
 use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
 use emas_rs::conf_functions::RealConfiguration;
 use emas_rs::SystemBuilder;
@@ -18,7 +18,7 @@ fn main() {
         reproduction_chance: default_reproduction_chance,
         pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
         mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
-        recombine: random_cut_point_reproduce,
+        recombine: random_cut_point_recombine,
     };
     let mut system = SystemBuilder::new(rastrigin100d_configuration)
         .steps(1_000_000)

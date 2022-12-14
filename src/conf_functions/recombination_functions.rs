@@ -1,7 +1,7 @@
 use crate::R;
 use rand::Rng;
 
-pub fn random_cut_point_recombination<const N: usize>(
+pub fn random_cut_point_recombine<const N: usize>(
     parents_genes: (&[f64; N], &[f64; N]),
     rng: &mut R,
 ) -> ([f64; N], [f64; N]) {
