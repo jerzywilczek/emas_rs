@@ -74,28 +74,20 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         self.energy -= par1_en;
         other.energy -= par2_en;
 
+        let children_genes: ([T; N], [T; N]) = conf.recombine((&self.genes, &other.genes), rng);
+
         let mut ch1 = Agent {
             energy: (par1_en + par2_en) / 2,
             id: ch1_id,
-            genes: [T::default(); N],
+            genes: children_genes.0,
             fitness: 0.0,
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
             id: ch2_id,
-            genes: [T::default(); N],
+            genes: children_genes.1,
             fitness: 0.0,
         };
-
-        let cut_point = thread_rng().gen_range(0..self.genes.len());
-        for i in 0..cut_point {
-            ch1.genes[i] = self.genes[i];
-            ch2.genes[i] = other.genes[i];
-        }
-        for i in cut_point..self.genes.len() {
-            ch1.genes[i] = other.genes[i];
-            ch1.genes[i] = self.genes[i];
-        }
 
         ch1.mutate(conf, rng);
         ch2.mutate(conf, rng);
