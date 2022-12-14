@@ -6,7 +6,7 @@ pub mod gene_mutations;
 pub mod gene_pickers;
 pub mod mutation_functions;
 pub mod reproduction_chance_functions;
-pub mod reproduction_functions;
+pub mod recombination_functions;
 
 type GenesForMutation<'a> = Vec<(&'a mut f64, (f64, f64))>;
 
@@ -16,7 +16,7 @@ type PickGenesFn<const N: usize> = for<'a> fn(
     rng: &mut R,
 ) -> GenesForMutation<'a>;
 
-type ReproductionFn<const N: usize> =
+type RecombinationFn<const N: usize> =
     fn(parents_genes: (&[f64; N], &[f64; N]), rng: &mut R) -> ([f64; N], [f64; N]);
 
 pub struct RealConfiguration<const N: usize> {
@@ -26,7 +26,7 @@ pub struct RealConfiguration<const N: usize> {
     pub reproduction_chance: fn(energy: u32) -> ReproductionChance,
     pub pick_genes: PickGenesFn<N>,
     pub mutate_gene: fn(value: &mut f64, domain: (f64, f64), rng: &mut R),
-    pub reproduce: ReproductionFn<N>,
+    pub recombine: RecombinationFn<N>,
 }
 
 pub trait Configuration<const N: usize, T> {
@@ -40,7 +40,7 @@ pub trait Configuration<const N: usize, T> {
 
     fn random_genes(&self, rng: &mut R) -> [T; N];
 
-    fn reproduce(&self, parents_genes: (&[T; N], &[T; N]), rng: &mut R) -> ([T; N], [T; N]);
+    fn recombine(&self, parents_genes: (&[T; N], &[T; N]), rng: &mut R) -> ([T; N], [T; N]);
 }
 
 impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
@@ -68,11 +68,11 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         [1.1; N] // FIXME
     }
 
-    fn reproduce(
+    fn recombine(
         &self,
         parents_genes: (&[f64; N], &[f64; N]),
         rng: &mut R,
     ) -> ([f64; N], [f64; N]) {
-        (self.reproduce)(parents_genes, rng)
+        (self.recombine)(parents_genes, rng)
     }
 }

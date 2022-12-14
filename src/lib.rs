@@ -74,7 +74,7 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         self.energy -= par1_en;
         other.energy -= par2_en;
 
-        let children_genes: ([T; N], [T; N]) = conf.reproduce((&self.genes, &other.genes), rng);
+        let children_genes: ([T; N], [T; N]) = conf.recombine((&self.genes, &other.genes), rng);
 
         let mut ch1 = Agent {
             energy: (par1_en + par2_en) / 2,
