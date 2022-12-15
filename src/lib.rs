@@ -23,7 +23,7 @@ impl<T: Default + Copy + Send> Gene for T {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
 
-// #[derive(Debug)]
+#[derive(Debug)]
 struct Agent<const N: usize, T: Gene> {
     genes: [T; N],
     energy: u32,
@@ -142,7 +142,7 @@ enum Action {
     Reproduce,
 }
 
-// #[derive(Debug)]
+#[derive(Debug)]
 struct Island<const N: usize, T: Gene> {
     _id: usize,
     agents: HashMap<AgentId, Agent<N, T>>,
@@ -293,7 +293,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
     }
 }
 
-// #[derive(Debug)]
+#[derive(Debug)]
 pub struct System<const N: usize, T: Gene> {
     islands: Vec<Island<N, T>>,
     steps: u32,
@@ -527,12 +527,6 @@ impl<
     }
 
     pub fn build(self, mut rng: R) -> System<N, T> {
-        // for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
-        //     if d_min > d_max {
-        //         panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
-        //     }
-        // }
-
         let islands = (0..self.island_amount)
             .map(|id| {
                 Island::new(
