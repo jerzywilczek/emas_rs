@@ -119,13 +119,8 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         winner.energy += energy;
     }
 
-    fn pick_action(&self, reproduction_chance: ReproductionChance) -> Action {
-        let ReproductionChance(reproduction_chance) = reproduction_chance;
-        if thread_rng().gen::<f64>() < reproduction_chance {
-            Action::Reproduce
-        } else {
-            Action::Combat
-        }
+    fn pick_action(&self, conf: &Configuration<N, T>, rng: &mut R) -> Action {
+        conf.pick_action(self.energy, rng)
     }
 }
 
@@ -137,7 +132,7 @@ impl<const N: usize, T: Gene> PartialEq for Agent<N, T> {
 
 impl<const N: usize, T: Gene> Eq for Agent<N, T> {}
 
-enum Action {
+pub enum Action {
     Combat,
     Reproduce,
 }
@@ -205,7 +200,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
         let mut to_combat = Vec::new();
 
         for (&id, agent) in self.agents.iter_mut() {
-            match agent.pick_action(self.conf.reproduction_chance(agent.energy)) {
+            match agent.pick_action(self.conf.as_ref(), &mut self.rng) {
                 Action::Reproduce => to_reproduction.push(id),
                 Action::Combat => to_combat.push(id),
             }
