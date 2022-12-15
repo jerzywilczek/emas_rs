@@ -1,14 +1,14 @@
-use crate::{ReproductionChance, R};
-
 use std::fmt::Debug;
+
+use crate::{Action, R};
 
 pub mod combat_functions;
 pub mod fitness_functions;
 pub mod gene_mutations;
 pub mod gene_pickers;
 pub mod mutation_functions;
+pub mod pick_action_functions;
 pub mod recombination_functions;
-pub mod reproduction_chance_functions;
 
 type GenesForMutation<'a> = Vec<(&'a mut f64, (f64, f64))>;
 
@@ -25,7 +25,7 @@ pub struct RealConfiguration<const N: usize> {
     pub domain: [(f64, f64); N],
     pub fitness: fn(args: &[f64; N]) -> f64,
     pub combat: fn(this_agent_fitness: f64, other_agent_fitness: f64) -> f64,
-    pub reproduction_chance: fn(energy: u32) -> ReproductionChance,
+    pub pick_action: fn(energy: u32, rng: &mut R) -> Action,
     pub pick_genes: PickGenesFn<N>,
     pub mutate_gene: fn(value: &mut f64, domain: (f64, f64), rng: &mut R),
     pub recombine: RecombinationFn<N>,
@@ -42,7 +42,7 @@ pub trait Configuration<const N: usize, T>: Debug {
 
     fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
 
-    fn reproduction_chance(&self, energy: u32) -> ReproductionChance;
+    fn pick_action(&self, energy: u32, rng: &mut R) -> Action;
 
     fn mutate(&self, genes: &mut [T; N], rng: &mut R);
 
@@ -60,8 +60,8 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         (self.combat)(this_agent_fitness, other_agent_fitness)
     }
 
-    fn reproduction_chance(&self, energy: u32) -> ReproductionChance {
-        (self.reproduction_chance)(energy)
+    fn pick_action(&self, energy: u32, rng: &mut R) -> Action {
+        (self.pick_action)(energy, rng)
     }
 
     fn mutate(&self, genes: &mut [f64; N], rng: &mut R) {

@@ -7,8 +7,8 @@ use std::time::Instant;
 use emas_rs::conf_functions::combat_functions::default_combat;
 use emas_rs::conf_functions::gene_mutations::normal_mutation;
 use emas_rs::conf_functions::gene_pickers::stochastic_pick;
+use emas_rs::conf_functions::pick_action_functions::default_pick_action;
 use emas_rs::conf_functions::recombination_functions::random_cut_point_recombine;
-use emas_rs::conf_functions::reproduction_chance_functions::default_reproduction_chance;
 use emas_rs::conf_functions::RealConfiguration;
 use emas_rs::SystemBuilder;
 
@@ -27,7 +27,7 @@ fn main() {
         domain: DOMAIN,
         fitness: rosenbrock_2d,
         combat: default_combat,
-        reproduction_chance: default_reproduction_chance,
+        pick_action: default_pick_action,
         pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
         mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
         recombine: random_cut_point_recombine,
