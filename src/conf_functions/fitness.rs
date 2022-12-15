@@ -49,7 +49,7 @@ pub mod ackley_fitness {
 
 #[cfg(test)]
 mod tests {
-    use crate::conf_functions::fitness_functions::*;
+    use crate::conf_functions::fitness::*;
     use ackley_fitness::ackley;
     use assert_approx_eq::assert_approx_eq;
     use rastrigin_fitness::rastrigin;
