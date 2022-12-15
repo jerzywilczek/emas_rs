@@ -1,20 +1,33 @@
-pub fn complete<const N: usize>() -> [Vec<usize>; N] {
-    const EMPTY_VEC: Vec<usize> = vec![];
-    let mut adjacency_list = [EMPTY_VEC; N];
-    for u in 0..N {
-        for v in 0..N {
+type Topology = Vec<Vec<usize>>;
+
+pub fn empty(n: usize) -> Topology {
+    (0..n).map(|_| Vec::new()).collect()
+}
+
+pub fn fully_connected(n: usize) -> Topology {
+    let mut adjacency_list = Vec::new();
+    for u in 0..n {
+        adjacency_list.push(Vec::new());
+        for v in 0..n {
+            if u == v {
+                continue;
+            }
             adjacency_list[u].push(v);
         }
     }
     adjacency_list
 }
 
-pub fn ring<const N: usize>() -> [Vec<usize>; N] {
-    const EMPTY_VEC: Vec<usize> = vec![];
-    let mut adjacency_list = [EMPTY_VEC; N];
-    for node in 0..N {
-        adjacency_list[node].push((node + 1) % N);
+pub fn ring(n: usize) -> Topology {
+    if n == 1 {
+        return empty(1);
     }
+    (0..n).map(|node| vec![(node + 1) % n]).collect()
+}
+
+pub fn star(n: usize) -> Topology {
+    let mut adjacency_list: Topology = (0..n).map(|_| vec![0]).collect();
+    adjacency_list[0] = (1..n).collect();
     adjacency_list
 }
 
@@ -25,15 +38,12 @@ mod tests {
 
     #[test]
     fn ring_test() {
-        let ring1 = ring::<1>();
-        assert_eq!(ring1, [vec![0]]); // assumes a single island is connected to itself
-        let ring2 = ring::<2>();
-        assert_eq!(ring2, [vec![1], vec![0]]);
-        let ring5 = ring::<5>();
-        assert_eq!(ring5, [vec![1], vec![2], vec![3], vec![4], vec![0]]);
+        assert_eq!(ring(1), vec![vec![]]);
+        assert_eq!(ring(2), vec![vec![1], vec![0]]);
+        assert_eq!(ring(5), vec![vec![1], vec![2], vec![3], vec![4], vec![0]]);
     }
 
-    fn validate_adjacency_lists<const N: usize>(g1: &[Vec<usize>; N], g2: &[Vec<usize>; N]) {
+    fn validate_adjacency_lists(g1: &Topology, g2: &Topology) {
         let g1_sets: Vec<HashSet<_>> = g1.iter().map(|l| l.iter().collect()).collect();
         let g2_sets: Vec<HashSet<_>> = g2.iter().map(|l| l.iter().collect()).collect();
 
@@ -43,13 +53,22 @@ mod tests {
     }
 
     #[test]
-    fn complete_test() {
-        // assumes a single island is connected to itself
-        validate_adjacency_lists(&complete::<1>(), &[vec![0]]);
-        validate_adjacency_lists(&complete::<2>(), &[vec![0, 1], vec![0, 1]]);
+    fn fully_connected_test() {
+        validate_adjacency_lists(&fully_connected(1), &vec![vec![]]);
+        validate_adjacency_lists(&fully_connected(2), &vec![vec![1], vec![0]]);
         validate_adjacency_lists(
-            &complete::<3>(),
-            &[vec![0, 1, 2], vec![0, 1, 2], vec![0, 1, 2]],
+            &fully_connected(3),
+            &vec![vec![1, 2], vec![0, 2], vec![0, 1]],
         );
+    }
+
+    #[test]
+    fn star_test() {
+        validate_adjacency_lists(&star(1), &vec![vec![]]);
+        validate_adjacency_lists(&star(2), &vec![vec![1], vec![0]]);
+        validate_adjacency_lists(
+            &star(5),
+            &vec![vec![1, 2, 3, 4], vec![0], vec![0], vec![0], vec![0]],
+        )
     }
 }
