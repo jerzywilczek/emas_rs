@@ -19,7 +19,7 @@ fn main() {
         mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
     };
     let mut system = SystemBuilder::new(rastrigin100d_configuration)
-        .steps(1_000_000)
+        .steps(100_000)
         .build(thread_rng());
     let t0 = Instant::now();
     let sol = system.run();

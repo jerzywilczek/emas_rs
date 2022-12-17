@@ -6,7 +6,7 @@ pub mod gene_mutations;
 pub mod gene_pickers;
 pub mod mutation;
 pub mod reproduction_chance;
-mod topologies;
+pub mod topologies;
 
 type GenesForMutation<'a> = Vec<(&'a mut f64, (f64, f64))>;
 

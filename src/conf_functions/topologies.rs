@@ -1,4 +1,4 @@
-type Topology = Vec<Vec<usize>>;
+pub type Topology = Vec<Vec<usize>>;
 
 pub fn empty(n: usize) -> Topology {
     (0..n).map(|_| Vec::new()).collect()
@@ -29,6 +29,13 @@ pub fn star(n: usize) -> Topology {
     let mut adjacency_list: Topology = (0..n).map(|_| vec![0]).collect();
     adjacency_list[0] = (1..n).collect();
     adjacency_list
+}
+
+pub fn is_valid(topology: &Topology, n: usize) -> bool {
+    if topology.len() != n {
+        return false;
+    }
+    topology.iter().flatten().all(|node| *node < n)
 }
 
 #[cfg(test)]
