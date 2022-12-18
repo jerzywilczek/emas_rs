@@ -1,8 +1,8 @@
-use crate::R;
+use crate::{Gene, R};
 use rand::seq::IteratorRandom;
 use rand::Rng;
 
-pub fn stochastic_pick<'a, const N: usize, T: Default + Copy + Clone>(
+pub fn stochastic_pick<'a, const N: usize, T: Gene>(
     genes: &'a mut [T; N],
     domain: &[(T, T); N],
     rng: &mut R,
