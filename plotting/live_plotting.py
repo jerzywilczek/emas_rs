@@ -4,12 +4,14 @@ from matplotlib.animation import FuncAnimation
 import matplotlib as mpl
 from os.path import exists
 import time
+
 mpl.use('tkagg')
 
 plt.style.use('fivethirtyeight')
 figure, axis = plt.subplots(2, 2)
 figure.set_size_inches(9.5, 6.5)
 figure.set_dpi(100)
+
 
 def animate(i):
     data = pd.read_csv('./outputs.csv')
@@ -29,9 +31,11 @@ def animate(i):
 
     axis[1, 1].clear()
     axis[1, 1].plot(xs, data['best living'], linewidth=1)
+    axis[1, 1].set_yscale('log')
     axis[1, 1].set_title('best living')
 
     plt.tight_layout()
+
 
 while not exists('./outputs.csv'):
     time.sleep(0.05)

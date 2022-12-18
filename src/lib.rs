@@ -1,3 +1,5 @@
+use crate::conf_functions::topologies::fully_connected;
+use conf_functions::topologies;
 use rand::prelude::SliceRandom;
 use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
@@ -300,6 +302,7 @@ pub struct System<const N: usize, T: Gene> {
     logs: Vec<String>,
     log_period: Duration,
     conf: Arc<Configuration<N, T>>,
+    topology: topologies::Topology,
     rng: R,
 }
 
@@ -350,16 +353,15 @@ impl<const N: usize, T: Gene> System<N, T> {
     }
 
     fn migrate_agents(&mut self) {
-        let len = self.islands.len();
-
         let mut push_queue = Vec::new();
 
-        for (i, island) in self.islands.iter_mut().enumerate() {
+        for island in self.islands.iter_mut() {
+            let connected_islands = &self.topology[island._id];
             while let Some(agent) = island.migration_queue.pop() {
-                let mut new = self.rng.gen_range(0..len);
-                while new == i {
-                    new = self.rng.gen_range(0..len);
-                }
+                let new = match connected_islands.is_empty() {
+                    true => island._id,
+                    false => connected_islands[self.rng.gen_range(0..connected_islands.len())],
+                };
                 push_queue.push((new, agent));
             }
         }
@@ -441,6 +443,7 @@ pub struct SystemBuilder<
     migrations_elite_amount: usize,
     log_period: Duration,
     conf: Arc<C>,
+    topology: topologies::Topology,
     phantom1: PhantomData<T>,
     phantom2: PhantomData<R>,
 }
@@ -453,8 +456,9 @@ impl<
     > SystemBuilder<N, R, T, C>
 {
     pub fn new(conf: C) -> Self {
+        let island_amount = 5;
         SystemBuilder {
-            island_amount: 5,
+            island_amount,
             agents_per_island: 100,
             steps: 10_000,
             agent_energy: 10,
@@ -465,6 +469,7 @@ impl<
             migrations_elite_amount: 5,
             log_period: Duration::from_secs(1),
             conf: Arc::new(conf),
+            topology: fully_connected(island_amount),
             phantom1: PhantomData,
             phantom2: PhantomData,
         }
@@ -521,7 +526,22 @@ impl<
         self
     }
 
+    pub fn topology(mut self, topology: topologies::Topology) -> Self {
+        self.topology = topology;
+        self
+    }
+
     pub fn build(self, mut rng: R) -> System<N, T> {
+        // for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
+        //     if d_min > d_max {
+        //         panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
+        //     }
+        // }
+
+        if !topologies::is_valid(&self.topology, self.island_amount) {
+            panic!("Invalid topology");
+        }
+
         let islands = (0..self.island_amount)
             .map(|id| {
                 Island::new(
@@ -549,6 +569,7 @@ impl<
             logs,
             log_period: self.log_period,
             conf: self.conf,
+            topology: self.topology,
             rng: crate::R::from_rng(rng).unwrap(),
         }
     }
