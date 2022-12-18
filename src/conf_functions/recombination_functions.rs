@@ -1,11 +1,11 @@
 use crate::R;
 use rand::Rng;
 
-pub fn cut_point_recombine<const N: usize>(
-    parents_genes: (&[f64; N], &[f64; N]),
+pub fn cut_point_recombine<const N: usize, T: Default + Copy + Clone>(
+    parents_genes: (&[T; N], &[T; N]),
     cut_point: usize,
-) -> ([f64; N], [f64; N]) {
-    let mut children_genes = ([0.0; N], [0.0; N]);
+) -> ([T; N], [T; N])  {
+    let mut children_genes = ([T::default(); N], [T::default(); N]);
 
     for i in 0..cut_point {
         children_genes.0[i] = parents_genes.0[i];
@@ -18,12 +18,12 @@ pub fn cut_point_recombine<const N: usize>(
     children_genes
 }
 
-pub fn random_cut_point_recombine<const N: usize>(
-    parents_genes: (&[f64; N], &[f64; N]),
+pub fn random_cut_point_recombine<const N: usize, T: Default + Copy + Clone>(
+    parents_genes: (&[T; N], &[T; N]),
     rng: &mut R,
-) -> ([f64; N], [f64; N]) {
+) -> ([T; N], [T; N]) {
     let cut_point = rng.gen_range(0..N);
-    let mut children_genes = ([0.0; N], [0.0; N]);
+    let mut children_genes = ([T::default(); N], [T::default(); N]);
 
     for i in 0..cut_point {
         children_genes.0[i] = parents_genes.0[i];

@@ -17,8 +17,15 @@ type PickGenesFn<const N: usize> = for<'a> fn(
     rng: &mut R,
 ) -> GenesForMutation<'a>;
 
-type RecombinationFn<const N: usize> =
-    fn(parents_genes: (&[f64; N], &[f64; N]), rng: &mut R) -> ([f64; N], [f64; N]);
+type BinaryGenesForMutation<'a> = Vec<(&'a mut bool)>;
+
+type PickBinaryGenesFn<const N: usize> = for<'a> fn(
+    genes: &'a mut [f64; N],
+    rng: &mut R,
+) -> BinaryGenesForMutation<'a>;
+
+type RecombinationFn<const N: usize, T: Default + Copy + Clone> =
+    fn(parents_genes: (&[T; N], &[T; N]), rng: &mut R) -> ([T; N], [T; N]);
 
 pub struct RealConfiguration<const N: usize> {
     pub domain: [(f64, f64); N],
@@ -27,7 +34,16 @@ pub struct RealConfiguration<const N: usize> {
     pub pick_action: fn(energy: u32, rng: &mut R) -> Action,
     pub pick_genes: PickGenesFn<N>,
     pub mutate_gene: fn(value: &mut f64, domain: (f64, f64), rng: &mut R),
-    pub recombine: RecombinationFn<N>,
+    pub recombine: RecombinationFn<N, f64>,
+}
+
+pub struct BinaryConfiguration<const N: usize> {
+    pub fitness: fn(args: &[bool; N]) -> f64,
+    pub combat_winner: fn(this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R) -> bool,
+    pub pick_action: fn(energy: u32, rng: &mut R) -> Action,
+    pub pick_genes: PickBinaryGenesFn<N>,
+    pub mutate_gene: fn(value: &mut bool, rng: &mut R),
+    pub recombine: RecombinationFn<N, bool>,
 }
 
 impl<const N: usize> Debug for RealConfiguration<N> {
