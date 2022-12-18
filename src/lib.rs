@@ -1,5 +1,5 @@
 use rand::prelude::SliceRandom;
-use rand::{seq::IteratorRandom, thread_rng, Rng, SeedableRng};
+use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
@@ -212,7 +212,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
     }
 
     fn reproductions(&mut self, mut agents: Vec<AgentId>, energy_passed_percent: f64) {
-        agents.shuffle(&mut thread_rng());
+        agents.shuffle(&mut self.rng);
         while agents.len() >= 2 {
             let a1_id = agents.pop().unwrap();
             let a2_id = agents.pop().unwrap();
@@ -243,7 +243,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
     }
 
     fn combats(&mut self, mut agents: Vec<AgentId>, energy: u32) {
-        agents.shuffle(&mut thread_rng());
+        agents.shuffle(&mut self.rng);
         while agents.len() >= 2 {
             let a1_id = agents.pop().unwrap();
             let a2_id = agents.pop().unwrap();
@@ -281,7 +281,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
         let elite_amount = elite_amount.min(best_amount);
         let best = &candidates[..best_amount];
 
-        let elite = best.iter().choose_multiple(&mut thread_rng(), elite_amount);
+        let elite = best.iter().choose_multiple(&mut self.rng, elite_amount);
         for id in elite {
             self.migration_queue.push(self.agents.remove(id).unwrap());
         }
@@ -300,6 +300,7 @@ pub struct System<const N: usize, T: Gene> {
     logs: Vec<String>,
     log_period: Duration,
     conf: Arc<Configuration<N, T>>,
+    rng: R,
 }
 
 impl<const N: usize, T: Gene> System<N, T> {
@@ -349,16 +350,15 @@ impl<const N: usize, T: Gene> System<N, T> {
     }
 
     fn migrate_agents(&mut self) {
-        let mut rng = thread_rng();
         let len = self.islands.len();
 
         let mut push_queue = Vec::new();
 
         for (i, island) in self.islands.iter_mut().enumerate() {
             while let Some(agent) = island.migration_queue.pop() {
-                let mut new = rng.gen_range(0..len);
+                let mut new = self.rng.gen_range(0..len);
                 while new == i {
-                    new = rng.gen_range(0..len);
+                    new = self.rng.gen_range(0..len);
                 }
                 push_queue.push((new, agent));
             }
@@ -549,6 +549,7 @@ impl<
             logs,
             log_period: self.log_period,
             conf: self.conf,
+            rng: crate::R::from_rng(rng).unwrap(),
         }
     }
 }
