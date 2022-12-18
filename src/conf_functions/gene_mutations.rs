@@ -8,7 +8,7 @@ pub fn fixed_range_mutation(gene: &mut f64, domain: (f64, f64), rng: &mut R, mut
 }
 
 pub fn normal_mutation(gene: &mut f64, domain: (f64, f64), rng: &mut R, mutation_range: f64) {
-    *gene += mutation_range + (PI * (rng.gen::<f64>() - 0.5)).tan();
+    *gene += mutation_range * (PI * (rng.gen::<f64>() - 0.5)).tan();
     *gene = gene.clamp(domain.0, domain.1);
 }
 
