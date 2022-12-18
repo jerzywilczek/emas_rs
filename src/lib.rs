@@ -370,11 +370,11 @@ impl<const N: usize, T: Gene> System<N, T> {
 
         for island in self.islands.iter_mut() {
             let connected_islands = &self.topology[island._id];
-            if connected_islands.is_empty() {
-                continue;
-            }
             while let Some(agent) = island.migration_queue.pop() {
-                let new = connected_islands[rng.gen_range(0..connected_islands.len())];
+                let new = match connected_islands.is_empty() {
+                    true => island._id,
+                    false => connected_islands[rng.gen_range(0..connected_islands.len())]
+                };
                 push_queue.push((new, agent));
             }
         }

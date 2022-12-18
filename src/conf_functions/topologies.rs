@@ -26,7 +26,7 @@ pub fn ring(n: usize) -> Topology {
 }
 
 pub fn star(n: usize) -> Topology {
-    let mut adjacency_list: Topology = (0..n).map(|_| vec![0]).collect();
+    let mut adjacency_list: Topology = vec![vec![0]; n];
     adjacency_list[0] = (1..n).collect();
     adjacency_list
 }
