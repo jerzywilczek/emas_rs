@@ -1,3 +1,4 @@
+/// [Rastrigin function](https://www.sfu.ca/~ssurjano/rastr.html)
 pub mod rastrigin_fitness {
     pub const fn domain<const N: usize>() -> [(f64, f64); N] {
         [(-5.12, 5.12); N]
@@ -15,6 +16,7 @@ pub mod rastrigin_fitness {
     }
 }
 
+/// [Rosenbrock function](https://www.sfu.ca/~ssurjano/rosen.html)
 pub mod rosenbrock_fitness {
     pub const fn domain<const N: usize>() -> [(f64, f64); N] {
         [(-5.0, 5.0); N]
@@ -31,6 +33,7 @@ pub mod rosenbrock_fitness {
     }
 }
 
+/// [Ackley function](https://www.sfu.ca/~ssurjano/ackley.html)
 pub mod ackley_fitness {
     pub const fn domain<const N: usize>() -> [(f64, f64); N] {
         [(-32.768, 32.768); N]

@@ -1,9 +1,12 @@
+/// Topologies are graph-like lists of adjacent islands. For *n* islands they are a `Vec` of *n* `Vec`s, each consisting of `usize` only from *0* to *n-1* (can be empty).
 pub type Topology = Vec<Vec<usize>>;
 
+/// No connections – all islands are disjoint.
 pub fn empty(n: usize) -> Topology {
     (0..n).map(|_| Vec::new()).collect()
 }
 
+/// All islands are connected to each other.
 pub fn fully_connected(n: usize) -> Topology {
     let mut adjacency_list = Vec::new();
     for u in 0..n {
@@ -18,6 +21,7 @@ pub fn fully_connected(n: usize) -> Topology {
     adjacency_list
 }
 
+/// Islands form a directed [ring](https://en.wikipedia.org/wiki/Ring_network).
 pub fn ring(n: usize) -> Topology {
     if n == 1 {
         return empty(1);
@@ -25,12 +29,14 @@ pub fn ring(n: usize) -> Topology {
     (0..n).map(|node| vec![(node + 1) % n]).collect()
 }
 
+/// Island0 is connected to all other islands and all other islands are connected only to island0. See [Star network](https://en.wikipedia.org/wiki/Star_network).
 pub fn star(n: usize) -> Topology {
     let mut adjacency_list: Topology = vec![vec![0]; n];
     adjacency_list[0] = (1..n).collect();
     adjacency_list
 }
 
+/// Checks if given `topology` is valid for given island number `n`.
 pub fn is_valid(topology: &Topology, n: usize) -> bool {
     if topology.len() != n {
         return false;
