@@ -1,4 +1,3 @@
-use crate::conf_functions::topologies::fully_connected;
 use conf_functions::topologies;
 use rand::prelude::SliceRandom;
 use rand::{seq::IteratorRandom, Rng, SeedableRng};
@@ -443,7 +442,7 @@ pub struct SystemBuilder<
     migrations_elite_amount: usize,
     log_period: Duration,
     conf: Arc<C>,
-    topology: topologies::Topology,
+    topology_fn: fn(usize) -> topologies::Topology,
     phantom1: PhantomData<T>,
     phantom2: PhantomData<R>,
 }
@@ -456,9 +455,8 @@ impl<
     > SystemBuilder<N, R, T, C>
 {
     pub fn new(conf: C) -> Self {
-        let island_amount = 5;
         SystemBuilder {
-            island_amount,
+            island_amount: 5,
             agents_per_island: 100,
             steps: 10_000,
             agent_energy: 10,
@@ -469,7 +467,7 @@ impl<
             migrations_elite_amount: 5,
             log_period: Duration::from_secs(1),
             conf: Arc::new(conf),
-            topology: fully_connected(island_amount),
+            topology_fn: topologies::fully_connected,
             phantom1: PhantomData,
             phantom2: PhantomData,
         }
@@ -526,8 +524,8 @@ impl<
         self
     }
 
-    pub fn topology(mut self, topology: topologies::Topology) -> Self {
-        self.topology = topology;
+    pub fn topology_fn(mut self, topology_fn: fn(n: usize) -> topologies::Topology) -> Self {
+        self.topology_fn = topology_fn;
         self
     }
 
@@ -538,7 +536,7 @@ impl<
         //     }
         // }
 
-        if !topologies::is_valid(&self.topology, self.island_amount) {
+        if !topologies::is_valid(&(self.topology_fn)(self.island_amount), self.island_amount) {
             panic!("Invalid topology");
         }
 
@@ -569,7 +567,7 @@ impl<
             logs,
             log_period: self.log_period,
             conf: self.conf,
-            topology: self.topology,
+            topology: (self.topology_fn)(self.island_amount),
             rng: crate::R::from_rng(rng).unwrap(),
         }
     }
