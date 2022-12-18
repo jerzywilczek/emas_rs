@@ -1,7 +1,7 @@
 use crate::conf_functions::topologies::fully_connected;
 use conf_functions::topologies;
 use rand::prelude::SliceRandom;
-use rand::{seq::IteratorRandom, thread_rng, Rng, SeedableRng};
+use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
@@ -25,7 +25,7 @@ impl<T: Default + Copy + Send> Gene for T {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct AgentId(usize, usize);
 
-// #[derive(Debug)]
+#[derive(Debug)]
 struct Agent<const N: usize, T: Gene> {
     genes: [T; N],
     energy: u32,
@@ -76,28 +76,20 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         self.energy -= par1_en;
         other.energy -= par2_en;
 
+        let children_genes: ([T; N], [T; N]) = conf.recombine((&self.genes, &other.genes), rng);
+
         let mut ch1 = Agent {
             energy: (par1_en + par2_en) / 2,
             id: ch1_id,
-            genes: [T::default(); N],
+            genes: children_genes.0,
             fitness: 0.0,
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
             id: ch2_id,
-            genes: [T::default(); N],
+            genes: children_genes.1,
             fitness: 0.0,
         };
-
-        let cut_point = thread_rng().gen_range(0..self.genes.len());
-        for i in 0..cut_point {
-            ch1.genes[i] = self.genes[i];
-            ch2.genes[i] = other.genes[i];
-        }
-        for i in cut_point..self.genes.len() {
-            ch1.genes[i] = other.genes[i];
-            ch1.genes[i] = self.genes[i];
-        }
 
         ch1.mutate(conf, rng);
         ch2.mutate(conf, rng);
@@ -112,14 +104,14 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         conf.mutate(&mut self.genes, rng);
     }
 
-    fn combat<R: Rng>(
+    fn combat(
         &mut self,
         other: &mut Agent<N, T>,
         energy: u32,
         conf: &Configuration<N, T>,
         rng: &mut R,
     ) {
-        let (winner, looser) = if rng.gen::<f64>() < conf.combat(self.fitness, other.fitness) {
+        let (winner, looser) = if conf.combat_winner(self.fitness, other.fitness, rng) {
             (self, other)
         } else {
             (other, self)
@@ -129,13 +121,8 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         winner.energy += energy;
     }
 
-    fn pick_action(&self, reproduction_chance: ReproductionChance) -> Action {
-        let ReproductionChance(reproduction_chance) = reproduction_chance;
-        if thread_rng().gen::<f64>() < reproduction_chance {
-            Action::Reproduce
-        } else {
-            Action::Combat
-        }
+    fn pick_action(&self, conf: &Configuration<N, T>, rng: &mut R) -> Action {
+        conf.pick_action(self.energy, rng)
     }
 }
 
@@ -147,12 +134,12 @@ impl<const N: usize, T: Gene> PartialEq for Agent<N, T> {
 
 impl<const N: usize, T: Gene> Eq for Agent<N, T> {}
 
-enum Action {
+pub enum Action {
     Combat,
     Reproduce,
 }
 
-// #[derive(Debug)]
+#[derive(Debug)]
 struct Island<const N: usize, T: Gene> {
     _id: usize,
     agents: HashMap<AgentId, Agent<N, T>>,
@@ -215,7 +202,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
         let mut to_combat = Vec::new();
 
         for (&id, agent) in self.agents.iter_mut() {
-            match agent.pick_action(self.conf.reproduction_chance(agent.energy)) {
+            match agent.pick_action(self.conf.as_ref(), &mut self.rng) {
                 Action::Reproduce => to_reproduction.push(id),
                 Action::Combat => to_combat.push(id),
             }
@@ -227,7 +214,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
     }
 
     fn reproductions(&mut self, mut agents: Vec<AgentId>, energy_passed_percent: f64) {
-        agents.shuffle(&mut thread_rng());
+        agents.shuffle(&mut self.rng);
         while agents.len() >= 2 {
             let a1_id = agents.pop().unwrap();
             let a2_id = agents.pop().unwrap();
@@ -258,7 +245,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
     }
 
     fn combats(&mut self, mut agents: Vec<AgentId>, energy: u32) {
-        agents.shuffle(&mut thread_rng());
+        agents.shuffle(&mut self.rng);
         while agents.len() >= 2 {
             let a1_id = agents.pop().unwrap();
             let a2_id = agents.pop().unwrap();
@@ -296,14 +283,14 @@ impl<const N: usize, T: Gene> Island<N, T> {
         let elite_amount = elite_amount.min(best_amount);
         let best = &candidates[..best_amount];
 
-        let elite = best.iter().choose_multiple(&mut thread_rng(), elite_amount);
+        let elite = best.iter().choose_multiple(&mut self.rng, elite_amount);
         for id in elite {
             self.migration_queue.push(self.agents.remove(id).unwrap());
         }
     }
 }
 
-// #[derive(Debug)]
+#[derive(Debug)]
 pub struct System<const N: usize, T: Gene> {
     islands: Vec<Island<N, T>>,
     steps: u32,
@@ -316,6 +303,7 @@ pub struct System<const N: usize, T: Gene> {
     log_period: Duration,
     conf: Arc<Configuration<N, T>>,
     topology: topologies::Topology,
+    rng: R,
 }
 
 impl<const N: usize, T: Gene> System<N, T> {
@@ -365,7 +353,6 @@ impl<const N: usize, T: Gene> System<N, T> {
     }
 
     fn migrate_agents(&mut self) {
-        let mut rng = thread_rng();
         let mut push_queue = Vec::new();
 
         for island in self.islands.iter_mut() {
@@ -373,7 +360,7 @@ impl<const N: usize, T: Gene> System<N, T> {
             while let Some(agent) = island.migration_queue.pop() {
                 let new = match connected_islands.is_empty() {
                     true => island._id,
-                    false => connected_islands[rng.gen_range(0..connected_islands.len())],
+                    false => connected_islands[self.rng.gen_range(0..connected_islands.len())],
                 };
                 push_queue.push((new, agent));
             }
@@ -583,6 +570,7 @@ impl<
             log_period: self.log_period,
             conf: self.conf,
             topology: self.topology,
+            rng: crate::R::from_rng(rng).unwrap(),
         }
     }
 }
