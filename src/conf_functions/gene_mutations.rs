@@ -2,18 +2,14 @@ use crate::R;
 use rand::Rng;
 use std::f64::consts::PI;
 
-fn limit_gene_value(value: &mut f64, range: (f64, f64)) {
-    *value = value.max(range.0).min(range.1);
-}
-
 pub fn fixed_range_mutation(gene: &mut f64, domain: (f64, f64), rng: &mut R, mutation_range: f64) {
     *gene += mutation_range * (-1.0 + rng.gen::<f64>() * 2.0);
-    limit_gene_value(gene, domain);
+    *gene = gene.clamp(domain.0, domain.1);
 }
 
 pub fn normal_mutation(gene: &mut f64, domain: (f64, f64), rng: &mut R, mutation_range: f64) {
     *gene += mutation_range + (PI * (rng.gen::<f64>() - 0.5)).tan();
-    limit_gene_value(gene, domain);
+    *gene = gene.clamp(domain.0, domain.1);
 }
 
 pub fn normal_micro_macro_mutation(
@@ -34,5 +30,5 @@ pub fn normal_micro_macro_mutation(
     }
 
     *gene += range * (PI * (rng.gen::<f64>() - 0.5)).tan();
-    limit_gene_value(gene, domain);
+    *gene = gene.clamp(domain.0, domain.1);
 }
