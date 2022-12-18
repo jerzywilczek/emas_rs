@@ -9,5 +9,5 @@ pub fn default_combat(this_agent_fitness: f64, other_agent_fitness: f64, rng: &m
     if rng.gen::<f64>() < win_chance {
         return true;
     }
-    return false;
+    false
 }
