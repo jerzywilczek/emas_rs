@@ -102,14 +102,14 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         conf.mutate(&mut self.genes, rng);
     }
 
-    fn combat<R: Rng>(
+    fn combat(
         &mut self,
         other: &mut Agent<N, T>,
         energy: u32,
         conf: &Configuration<N, T>,
         rng: &mut R,
     ) {
-        let (winner, looser) = if rng.gen::<f64>() < conf.combat(self.fitness, other.fitness) {
+        let (winner, looser) = if conf.combat_winner(self.fitness, other.fitness, rng) {
             (self, other)
         } else {
             (other, self)

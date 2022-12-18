@@ -26,7 +26,7 @@ fn main() {
     let rosenbrock2d_configuration = RealConfiguration {
         domain: DOMAIN,
         fitness: rosenbrock_2d,
-        combat: default_combat,
+        combat_winner: default_combat,
         pick_action: default_pick_action,
         pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
         mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
