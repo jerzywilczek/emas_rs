@@ -6,10 +6,8 @@ pub mod combat;
 pub mod fitness;
 pub mod gene_mutations;
 pub mod gene_pickers;
-pub mod pick_action_functions;
-pub mod recombination_functions;
-pub mod mutation;
-pub mod reproduction_chance;
+pub mod pick_action;
+pub mod recombination;
 pub mod topologies;
 
 type GenesForMutation<'a> = Vec<(&'a mut f64, (f64, f64))>;
