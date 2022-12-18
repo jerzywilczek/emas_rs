@@ -4,7 +4,7 @@ use rand::Rng;
 pub fn cut_point_recombine<const N: usize, T: Default + Copy + Clone>(
     parents_genes: (&[T; N], &[T; N]),
     cut_point: usize,
-) -> ([T; N], [T; N])  {
+) -> ([T; N], [T; N]) {
     let mut children_genes = ([T::default(); N], [T::default(); N]);
 
     for i in 0..cut_point {

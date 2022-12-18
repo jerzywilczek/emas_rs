@@ -65,9 +65,9 @@ pub mod labs_fitness {
         energy
     }
 
-    fn autocorrelation<const N: usize>(args: &[bool; N], distance: usize) -> i32{
+    fn autocorrelation<const N: usize>(args: &[bool; N], distance: usize) -> i32 {
         let mut result: i32 = 0;
-        for i in 0..N-distance {
+        for i in 0..N - distance {
             let s_i = if args[i] { 1 } else { -1 };
             let s_ik = if args[i + distance] { 1 } else { -1 };
             result += s_i * s_ik;
