@@ -24,7 +24,7 @@ type RecombinationFn<const N: usize> =
 pub struct RealConfiguration<const N: usize> {
     pub domain: [(f64, f64); N],
     pub fitness: fn(args: &[f64; N]) -> f64,
-    pub combat: fn(this_agent_fitness: f64, other_agent_fitness: f64) -> f64,
+    pub combat_winner: fn(this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R) -> bool,
     pub pick_action: fn(energy: u32, rng: &mut R) -> Action,
     pub pick_genes: PickGenesFn<N>,
     pub mutate_gene: fn(value: &mut f64, domain: (f64, f64), rng: &mut R),
@@ -40,7 +40,8 @@ impl<const N: usize> Debug for RealConfiguration<N> {
 pub trait Configuration<const N: usize, T>: Debug {
     fn fitness(&self, args: &[T; N]) -> f64;
 
-    fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64;
+    fn combat_winner(&self, this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R)
+        -> bool;
 
     fn pick_action(&self, energy: u32, rng: &mut R) -> Action;
 
@@ -56,8 +57,13 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         (self.fitness)(args)
     }
 
-    fn combat(&self, this_agent_fitness: f64, other_agent_fitness: f64) -> f64 {
-        (self.combat)(this_agent_fitness, other_agent_fitness)
+    fn combat_winner(
+        &self,
+        this_agent_fitness: f64,
+        other_agent_fitness: f64,
+        rng: &mut R,
+    ) -> bool {
+        (self.combat_winner)(this_agent_fitness, other_agent_fitness, rng)
     }
 
     fn pick_action(&self, energy: u32, rng: &mut R) -> Action {
