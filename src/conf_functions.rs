@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use rand::Rng;
+
 use crate::{Action, R};
 
 pub mod combat;
@@ -78,8 +80,13 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         }
     }
 
-    fn random_genes(&self, _rng: &mut R) -> [f64; N] {
-        [1.1; N] // FIXME
+    fn random_genes(&self, rng: &mut R) -> [f64; N] {
+        let mut genes = [0.0; N];
+        for (gene, domain) in genes.iter_mut().zip(self.domain.iter()) {
+            *gene = rng.gen_range(domain.0..domain.1);
+        }
+
+        genes
     }
 
     fn recombine(
