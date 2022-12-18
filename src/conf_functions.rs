@@ -6,7 +6,6 @@ pub mod combat_functions;
 pub mod fitness_functions;
 pub mod gene_mutations;
 pub mod gene_pickers;
-pub mod mutation_functions;
 pub mod pick_action_functions;
 pub mod recombination_functions;
 
