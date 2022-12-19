@@ -43,8 +43,6 @@ impl<const N: usize, T: Gene> Clone for Agent<N, T> {
     }
 }
 
-pub struct ReproductionChance(pub f64);
-
 impl<const N: usize, T: Gene> Agent<N, T> {
     fn rand_agent(
         starting_energy: u32,
@@ -65,8 +63,7 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         &mut self,
         other: &mut Agent<N, T>,
         energy_passed_percent: f64,
-        ch1_id: AgentId,
-        ch2_id: AgentId,
+        child_ids: (AgentId, AgentId),
         conf: &Configuration<N, T>,
         rng: &mut R,
     ) -> (Agent<N, T>, Agent<N, T>) {
@@ -79,13 +76,13 @@ impl<const N: usize, T: Gene> Agent<N, T> {
 
         let mut ch1 = Agent {
             energy: (par1_en + par2_en) / 2,
-            id: ch1_id,
+            id: child_ids.0,
             genes: children_genes.0,
             fitness: 0.0,
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
-            id: ch2_id,
+            id: child_ids.1,
             genes: children_genes.1,
             fitness: 0.0,
         };
@@ -226,8 +223,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
             let offspring = a1.reproduce(
                 a2,
                 energy_passed_percent,
-                ch1_id,
-                ch2_id,
+                (ch1_id, ch2_id),
                 self.conf.as_ref(),
                 &mut self.rng,
             );
