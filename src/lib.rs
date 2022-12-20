@@ -3,7 +3,7 @@ use conf_functions::topologies;
 use rand::prelude::SliceRandom;
 use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::fs;
 use std::fs::File;
 use std::hash::Hash;
@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 pub mod conf_functions;
 
-type R = rand_chacha::ChaCha12Rng;
+type R = rand_pcg::Pcg64Mcg;
 
 type Configuration<const N: usize, T> =
     dyn conf_functions::Configuration<N, T> + Send + Sync + 'static;
