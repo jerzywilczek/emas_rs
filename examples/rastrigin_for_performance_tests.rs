@@ -21,7 +21,7 @@ fn main() {
     };
     let mut system = SystemBuilder::new(rastrigin100d_configuration)
         .island_amount(32)
-        .topology(topologies::fully_connected(32))
+        .topology_fn(topologies::fully_connected)
         .steps(300_000)
         .migration_steps(250)
         .build(rand_chacha::ChaCha12Rng::from_seed([42; 32]));

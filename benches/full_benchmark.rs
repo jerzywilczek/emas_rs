@@ -26,7 +26,7 @@ fn benchmark(c: &mut Criterion) {
 
                 let s = SystemBuilder::<10, _, _, _>::new(conf)
                     .island_amount(16)
-                    .topology(emas_rs::conf_functions::topologies::fully_connected(16))
+                    .topology_fn(emas_rs::conf_functions::topologies::fully_connected)
                     .migration_steps(50)
                     .steps(100);
 
