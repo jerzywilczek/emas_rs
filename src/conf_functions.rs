@@ -1,14 +1,17 @@
 use rand::Rng;
 use std::fmt::Debug;
 
+use rand::Rng;
+
 use crate::{Action, R};
 
-pub mod combat_functions;
-pub mod fitness_functions;
+pub mod combat;
+pub mod fitness;
 pub mod gene_mutations;
 pub mod gene_pickers;
-pub mod pick_action_functions;
-pub mod recombination_functions;
+pub mod pick_action;
+pub mod recombination;
+pub mod topologies;
 
 type GenesForMutation<'a, T> = Vec<(&'a mut T, (T, T))>;
 
@@ -90,8 +93,13 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         }
     }
 
-    fn random_genes(&self, _rng: &mut R) -> [f64; N] {
-        [1.1; N] // FIXME
+    fn random_genes(&self, rng: &mut R) -> [f64; N] {
+        let mut genes = [0.0; N];
+        for (gene, domain) in genes.iter_mut().zip(self.domain.iter()) {
+            *gene = rng.gen_range(domain.0..domain.1);
+        }
+
+        genes
     }
 
     fn recombine(

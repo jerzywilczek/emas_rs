@@ -1,7 +1,8 @@
+use conf_functions::topologies;
 use rand::prelude::SliceRandom;
 use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::fs;
 use std::fs::File;
 use std::hash::Hash;
@@ -12,7 +13,7 @@ use std::time::{Duration, Instant};
 
 pub mod conf_functions;
 
-type R = rand_chacha::ChaCha12Rng;
+type R = rand_pcg::Pcg64Mcg;
 
 type Configuration<const N: usize, T> =
     dyn conf_functions::Configuration<N, T> + Send + Sync + 'static;
@@ -42,8 +43,6 @@ impl<const N: usize, T: Gene> Clone for Agent<N, T> {
     }
 }
 
-pub struct ReproductionChance(pub f64);
-
 impl<const N: usize, T: Gene> Agent<N, T> {
     fn rand_agent(
         starting_energy: u32,
@@ -64,8 +63,7 @@ impl<const N: usize, T: Gene> Agent<N, T> {
         &mut self,
         other: &mut Agent<N, T>,
         energy_passed_percent: f64,
-        ch1_id: AgentId,
-        ch2_id: AgentId,
+        child_ids: (AgentId, AgentId),
         conf: &Configuration<N, T>,
         rng: &mut R,
     ) -> (Agent<N, T>, Agent<N, T>) {
@@ -78,13 +76,13 @@ impl<const N: usize, T: Gene> Agent<N, T> {
 
         let mut ch1 = Agent {
             energy: (par1_en + par2_en) / 2,
-            id: ch1_id,
+            id: child_ids.0,
             genes: children_genes.0,
             fitness: 0.0,
         };
         let mut ch2 = Agent {
             energy: (par1_en + par2_en + 1) / 2,
-            id: ch2_id,
+            id: child_ids.1,
             genes: children_genes.1,
             fitness: 0.0,
         };
@@ -225,8 +223,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
             let offspring = a1.reproduce(
                 a2,
                 energy_passed_percent,
-                ch1_id,
-                ch2_id,
+                (ch1_id, ch2_id),
                 self.conf.as_ref(),
                 &mut self.rng,
             );
@@ -300,6 +297,7 @@ pub struct System<const N: usize, T: Gene> {
     logs: Vec<String>,
     log_period: Duration,
     conf: Arc<Configuration<N, T>>,
+    topology: topologies::Topology,
     rng: R,
 }
 
@@ -350,16 +348,15 @@ impl<const N: usize, T: Gene> System<N, T> {
     }
 
     fn migrate_agents(&mut self) {
-        let len = self.islands.len();
-
         let mut push_queue = Vec::new();
 
-        for (i, island) in self.islands.iter_mut().enumerate() {
+        for island in self.islands.iter_mut() {
+            let connected_islands = &self.topology[island._id];
             while let Some(agent) = island.migration_queue.pop() {
-                let mut new = self.rng.gen_range(0..len);
-                while new == i {
-                    new = self.rng.gen_range(0..len);
-                }
+                let new = match connected_islands.is_empty() {
+                    true => island._id,
+                    false => connected_islands[self.rng.gen_range(0..connected_islands.len())],
+                };
                 push_queue.push((new, agent));
             }
         }
@@ -441,6 +438,7 @@ pub struct SystemBuilder<
     migrations_elite_amount: usize,
     log_period: Duration,
     conf: Arc<C>,
+    topology_fn: fn(usize) -> topologies::Topology,
     phantom1: PhantomData<T>,
     phantom2: PhantomData<R>,
 }
@@ -465,6 +463,7 @@ impl<
             migrations_elite_amount: 5,
             log_period: Duration::from_secs(1),
             conf: Arc::new(conf),
+            topology_fn: topologies::fully_connected,
             phantom1: PhantomData,
             phantom2: PhantomData,
         }
@@ -521,7 +520,22 @@ impl<
         self
     }
 
+    pub fn topology_fn(mut self, topology_fn: fn(n: usize) -> topologies::Topology) -> Self {
+        self.topology_fn = topology_fn;
+        self
+    }
+
     pub fn build(self, mut rng: R) -> System<N, T> {
+        // for (i, (d_min, d_max)) in F::DOMAIN.iter().enumerate() {
+        //     if d_min > d_max {
+        //         panic!("In the domain in argument {}, the first element is larger than the second element, which is not allowed", i)
+        //     }
+        // }
+
+        if !topologies::is_valid(&(self.topology_fn)(self.island_amount), self.island_amount) {
+            panic!("Invalid topology");
+        }
+
         let islands = (0..self.island_amount)
             .map(|id| {
                 Island::new(
@@ -549,6 +563,7 @@ impl<
             logs,
             log_period: self.log_period,
             conf: self.conf,
+            topology: (self.topology_fn)(self.island_amount),
             rng: crate::R::from_rng(rng).unwrap(),
         }
     }

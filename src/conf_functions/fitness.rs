@@ -1,3 +1,4 @@
+/// [Rastrigin function](https://www.sfu.ca/~ssurjano/rastr.html)
 pub mod rastrigin_fitness {
     pub const fn domain<const N: usize>() -> [(f64, f64); N] {
         [(-5.12, 5.12); N]
@@ -15,6 +16,7 @@ pub mod rastrigin_fitness {
     }
 }
 
+/// [Rosenbrock function](https://www.sfu.ca/~ssurjano/rosen.html)
 pub mod rosenbrock_fitness {
     pub const fn domain<const N: usize>() -> [(f64, f64); N] {
         [(-5.0, 5.0); N]
@@ -31,6 +33,7 @@ pub mod rosenbrock_fitness {
     }
 }
 
+/// [Ackley function](https://www.sfu.ca/~ssurjano/ackley.html)
 pub mod ackley_fitness {
     pub const fn domain<const N: usize>() -> [(f64, f64); N] {
         [(-32.768, 32.768); N]
@@ -78,17 +81,16 @@ pub mod labs_fitness {
 
 #[cfg(test)]
 mod tests {
-    use crate::conf_functions::fitness_functions::ackley_fitness::ackley;
-    use crate::conf_functions::fitness_functions::rastrigin_fitness::rastrigin;
-    use crate::conf_functions::fitness_functions::rosenbrock_fitness::rosenbrock;
+    use crate::conf_functions::fitness::*;
+    use ackley_fitness::ackley;
     use assert_approx_eq::assert_approx_eq;
+    use rastrigin_fitness::rastrigin;
+    use rosenbrock_fitness::rosenbrock;
 
     #[test]
     fn rastrigin_correct_values() {
         // global minimum at (0, ..., 0)
-
         assert_eq!(rastrigin(&[0.0, 0.0]), 0.0);
-
         assert_eq!(rastrigin(&[0.0; 5]), 0.0);
         assert_eq!(rastrigin(&[0.0; 8]), 0.0);
 
