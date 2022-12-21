@@ -1,8 +1,6 @@
 use rand::Rng;
 use std::fmt::Debug;
 
-use rand::Rng;
-
 use crate::{Action, R};
 
 pub mod combat;
