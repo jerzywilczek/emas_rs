@@ -50,6 +50,35 @@ pub mod ackley_fitness {
     }
 }
 
+pub mod labs_fitness {
+    pub fn labs<const N: usize>(args: &[bool; N]) -> f64 {
+        merit_factor::<N>(labs_energy(args) as f64)
+    }
+
+    fn merit_factor<const N: usize>(labs_energy: f64) -> f64 {
+        N as f64 * N as f64 / (2.0 * labs_energy)
+    }
+
+    fn labs_energy<const N: usize>(args: &[bool; N]) -> i32 {
+        let mut energy = 0;
+        for k in 1..N {
+            let autocorrelation_result = autocorrelation(args, k);
+            energy += autocorrelation_result * autocorrelation_result;
+        }
+        energy
+    }
+
+    fn autocorrelation<const N: usize>(args: &[bool; N], distance: usize) -> i32 {
+        let mut result: i32 = 0;
+        for i in 0..N - distance {
+            let s_i = if args[i] { 1 } else { -1 };
+            let s_ik = if args[i + distance] { 1 } else { -1 };
+            result += s_i * s_ik;
+        }
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::conf_functions::fitness::*;

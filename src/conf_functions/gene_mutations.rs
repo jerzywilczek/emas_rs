@@ -32,3 +32,7 @@ pub fn normal_micro_macro_mutation(
     *gene += range * (PI * (rng.gen::<f64>() - 0.5)).tan();
     *gene = gene.clamp(domain.0, domain.1);
 }
+
+pub fn negation_mutation(gene: &mut bool) {
+    *gene = !*gene;
+}
