@@ -1,13 +1,14 @@
+use chrono::{Datelike, Timelike, Utc};
 use conf_functions::topologies;
 use rand::prelude::SliceRandom;
 use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
-use std::fs;
 use std::fs::File;
 use std::hash::Hash;
 use std::io::Write;
 use std::marker::PhantomData;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -295,6 +296,7 @@ pub struct System<const N: usize, T: Gene> {
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     logs: Vec<String>,
+    log_filename: String,
     log_period: Duration,
     conf: Arc<Configuration<N, T>>,
     topology: topologies::Topology,
@@ -382,8 +384,21 @@ impl<const N: usize, T: Gene> System<N, T> {
     }
 
     pub fn run(&mut self) -> [T; N] {
-        fs::remove_file("outputs.csv").ok();
-        let mut f = File::create("outputs.csv").unwrap();
+        let timestamp = Utc::now();
+        let timestamp = format!("{}{}{}{}{}{}", timestamp.year(), timestamp.month(), timestamp.day(), timestamp.hour(), timestamp.minute(), timestamp.second());
+        let mut timestamped_log_filename = String::from(&self.log_filename) + &timestamp + ".csv";
+        if Path::new(&timestamped_log_filename).exists() {
+            timestamped_log_filename = String::from(&self.log_filename) + &timestamp;
+            let mut filename_suffix = 1;
+            let mut new_timestamped_log_filename = format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
+            while Path::new(&new_timestamped_log_filename).exists() {
+                filename_suffix += 1;
+                new_timestamped_log_filename = format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
+            }
+            timestamped_log_filename = new_timestamped_log_filename;
+        }
+        let mut f = File::create(&timestamped_log_filename).unwrap();
+
         f.write_all(
             self.logs
                 .iter()
@@ -437,6 +452,7 @@ pub struct SystemBuilder<
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     log_period: Duration,
+    log_filename: String,
     conf: Arc<C>,
     topology_fn: fn(usize) -> topologies::Topology,
     phantom1: PhantomData<T>,
@@ -462,6 +478,7 @@ impl<
             migrations_best_amount: 10,
             migrations_elite_amount: 5,
             log_period: Duration::from_secs(1),
+            log_filename: "outputs".to_owned(),
             conf: Arc::new(conf),
             topology_fn: topologies::fully_connected,
             phantom1: PhantomData,
@@ -507,6 +524,11 @@ impl<
 
     pub fn log_period(mut self, amount: Duration) -> Self {
         self.log_period = amount;
+        self
+    }
+
+    pub fn log_filename(mut self, filename: String) -> Self {
+        self.log_filename = filename;
         self
     }
 
@@ -561,6 +583,7 @@ impl<
             migrations_best_amount: self.migrations_best_amount,
             migrations_elite_amount: self.migrations_elite_amount,
             logs,
+            log_filename: self.log_filename,
             log_period: self.log_period,
             conf: self.conf,
             topology: (self.topology_fn)(self.island_amount),
