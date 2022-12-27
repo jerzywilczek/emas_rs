@@ -16,9 +16,9 @@ fn main() {
         fitness: rastrigin::<N>,
         combat_winner: default_combat,
         pick_action: default_pick_action,
+        recombine: random_cut_point_recombine,
         pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
         mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
-        recombine: random_cut_point_recombine,
     };
     let mut system = SystemBuilder::new(rastrigin100d_configuration)
         .steps(100_000)

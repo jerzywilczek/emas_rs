@@ -12,9 +12,10 @@ use emas_rs::conf_functions::recombination::random_cut_point_recombine;
 use emas_rs::conf_functions::RealConfiguration;
 use emas_rs::SystemBuilder;
 
-const DOMAIN: [(f64, f64); 2] = [(-5.0, 5.0); 2];
+const N: usize = 2;
+const DOMAIN: [(f64, f64); N] = [(-5.0, 5.0); N];
 
-fn rosenbrock_2d(args: &[f64; 2]) -> f64 {
+fn rosenbrock_2d(args: &[f64; N]) -> f64 {
     let a: f64 = 1.0;
     let b: f64 = 100.0;
     let [x, y] = args;
