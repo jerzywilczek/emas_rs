@@ -623,6 +623,6 @@ mod tests {
             .stop_condition(StopCondition::TotalSteps(10_000))
             .build(thread_rng())
             .run();
-        println!("{}", solution[0]);
+        println!("Fitness: {}", rastrigin(&solution));
     }
 }
