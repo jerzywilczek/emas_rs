@@ -1,7 +1,6 @@
 use rand::thread_rng;
 use std::process::Command;
 use std::thread::sleep;
-use std::time;
 use std::time::{Duration, Instant};
 
 use emas_rs::conf_functions::combat::default_combat;

@@ -594,3 +594,35 @@ impl<
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn integration_test_rastrigin() {
+        use conf_functions::combat::default_combat;
+        use conf_functions::fitness::rastrigin_fitness::{domain, rastrigin};
+        use conf_functions::gene_mutations::normal_mutation;
+        use conf_functions::gene_pickers::stochastic_pick;
+        use conf_functions::pick_action::default_pick_action;
+        use conf_functions::recombination::random_cut_point_recombine;
+        use conf_functions::RealConfiguration;
+        use rand::thread_rng;
+
+        let conf = RealConfiguration {
+            domain: domain::<10>(),
+            fitness: rastrigin,
+            combat_winner: default_combat,
+            pick_action: default_pick_action,
+            pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
+            mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
+            recombine: random_cut_point_recombine,
+        };
+        let solution = SystemBuilder::new(conf)
+            .stop_condition(StopCondition::TotalSteps(10_000))
+            .build(thread_rng())
+            .run();
+        println!("{}", solution[0]);
+    }
+}
