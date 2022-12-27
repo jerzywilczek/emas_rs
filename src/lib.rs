@@ -413,7 +413,7 @@ impl<const N: usize, T: Gene> System<N, T> {
     }
 
     pub fn run(&mut self) -> [T; N] {
-        fs::remove_file("outputs.csv").unwrap();
+        fs::remove_file("outputs.csv").ok();
         let mut f = File::create("outputs.csv").unwrap();
         f.write_all(
             self.logs
