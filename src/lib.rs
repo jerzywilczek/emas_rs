@@ -289,6 +289,7 @@ impl<const N: usize, T: Gene> Island<N, T> {
 pub struct System<const N: usize, T: Gene> {
     islands: Vec<Island<N, T>>,
     steps: u32,
+    max_duration: Duration,
     energy_reproduction_percent: f64,
     energy_combat: u32,
     migration_steps: u32,
@@ -398,6 +399,7 @@ impl<const N: usize, T: Gene> System<N, T> {
         let start = Instant::now();
 
         let log_notification = crossbeam::channel::tick(self.log_period);
+        let end_notification = crossbeam::channel::after(self.max_duration);
 
         for _ in 0..self.steps / self.migration_steps {
             self.islands.par_iter_mut().for_each(|island| {
@@ -415,6 +417,9 @@ impl<const N: usize, T: Gene> System<N, T> {
                 f.write_all(self.log(start).as_bytes())
                     .expect("Can't write logs to the log file");
             }
+            if end_notification.try_recv().is_ok() {
+                return self.best_sol();
+            }
         }
 
         self.best_sol()
@@ -429,6 +434,7 @@ pub struct SystemBuilder<
 > {
     island_amount: usize,
     steps: u32,
+    max_duration: Duration,
     agents_per_island: usize,
     agent_energy: u32,
     energy_passed_on_reproduction: f64,
@@ -455,6 +461,7 @@ impl<
             island_amount: 5,
             agents_per_island: 100,
             steps: 10_000,
+            max_duration: Duration::from_secs(10),
             agent_energy: 10,
             energy_passed_on_reproduction: 0.25,
             energy_combat: 2,
@@ -476,6 +483,11 @@ impl<
 
     pub fn steps(mut self, amount: u32) -> Self {
         self.steps = amount;
+        self
+    }
+
+    pub fn max_duration(mut self, amount: Duration) -> Self {
+        self.max_duration = amount;
         self
     }
 
@@ -555,6 +567,7 @@ impl<
         System {
             islands,
             steps: self.steps,
+            max_duration: self.max_duration,
             energy_reproduction_percent: self.energy_passed_on_reproduction,
             energy_combat: self.energy_combat,
             migration_steps: self.migration_steps,
