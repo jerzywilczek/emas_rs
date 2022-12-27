@@ -1,0 +1,1 @@
+println!("Solution: {}", rastrigin(&solution));

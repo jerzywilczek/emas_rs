@@ -1,0 +1,13 @@
+let mut system = SystemBuilder::new(rosenbrock2d_configuration)
+                .steps(1_000_000)
+                .island_amount(16)
+                .agents_per_island(20)
+                .agent_energy(15)
+                .energy_passed_on_reproduction(0.25)
+                .combat_energy(3)
+                .migration_steps(10_000)
+                .migrations_best_amount(4)
+                .migrations_elite_amount(2)
+                .topology_fn(fully_connected)
+                .log_period(Duration::from_secs(5))
+                .build(Pcg64Mcg::seed_from_u64(1234));

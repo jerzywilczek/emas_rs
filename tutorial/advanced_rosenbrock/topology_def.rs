@@ -1,0 +1,2 @@
+/// Topologies are graph-like lists of adjacent islands. For *n* islands they are a `Vec` of *n* `Vec`s, each consisting of `usize` only from *0* to *n-1* (can be empty).
+pub type Topology = Vec<Vec<usize>>;

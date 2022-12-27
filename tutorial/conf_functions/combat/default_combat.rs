@@ -1,0 +1,1 @@
+pub fn default_combat(this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R) -> bool
