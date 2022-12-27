@@ -385,15 +385,25 @@ impl<const N: usize, T: Gene> System<N, T> {
 
     pub fn run(&mut self) -> [T; N] {
         let timestamp = Utc::now();
-        let timestamp = format!("{}{}{}{}{}{}", timestamp.year(), timestamp.month(), timestamp.day(), timestamp.hour(), timestamp.minute(), timestamp.second());
+        let timestamp = format!(
+            "{}{}{}{}{}{}",
+            timestamp.year(),
+            timestamp.month(),
+            timestamp.day(),
+            timestamp.hour(),
+            timestamp.minute(),
+            timestamp.second()
+        );
         let mut timestamped_log_filename = String::from(&self.log_filename) + &timestamp + ".csv";
         if Path::new(&timestamped_log_filename).exists() {
             timestamped_log_filename = String::from(&self.log_filename) + &timestamp;
             let mut filename_suffix = 1;
-            let mut new_timestamped_log_filename = format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
+            let mut new_timestamped_log_filename =
+                format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
             while Path::new(&new_timestamped_log_filename).exists() {
                 filename_suffix += 1;
-                new_timestamped_log_filename = format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
+                new_timestamped_log_filename =
+                    format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
             }
             timestamped_log_filename = new_timestamped_log_filename;
         }
