@@ -3,7 +3,6 @@ use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg64Mcg;
 use std::process::Command;
 use std::thread::sleep;
-use std::time;
 use std::time::{Duration, Instant};
 
 use emas_rs::conf_functions::topologies::fully_connected;
@@ -94,7 +93,7 @@ fn main() {
         fitness: rosenbrock_2d,
         combat_winner: my_combat,
         pick_action: my_pick_action,
-        recombine: |parents_genes, _rng| my_cut_point_recombine(parents_genes, N / 3 as usize),
+        recombine: |parents_genes, _rng| my_cut_point_recombine(parents_genes, N / 3_usize),
         pick_genes: my_genes_pick,
         mutate_gene: my_mutation,
     };
