@@ -1,4 +1,5 @@
 use conf_functions::topologies;
+use crossbeam::channel::Receiver;
 use rand::prelude::SliceRandom;
 use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
@@ -286,10 +287,15 @@ impl<const N: usize, T: Gene> Island<N, T> {
 }
 
 #[derive(Debug)]
+pub enum StopCondition {
+    TotalSteps(u32),
+    TimeLimit(Duration),
+}
+
+#[derive(Debug)]
 pub struct System<const N: usize, T: Gene> {
     islands: Vec<Island<N, T>>,
-    steps: u32,
-    max_duration: Duration,
+    stop_condition: StopCondition,
     energy_reproduction_percent: f64,
     energy_combat: u32,
     migration_steps: u32,
@@ -382,6 +388,30 @@ impl<const N: usize, T: Gene> System<N, T> {
             .genes
     }
 
+    fn run_migration_turn(
+        &mut self,
+        log_notification: &Receiver<Instant>,
+        log_file: &mut File,
+        start_time: Instant,
+    ) {
+        self.islands.par_iter_mut().for_each(|island| {
+            for _ in 0..self.migration_steps {
+                island.step(self.energy_reproduction_percent, self.energy_combat);
+            }
+        });
+
+        for island in self.islands.iter_mut() {
+            island.step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
+        }
+        self.migrate_agents();
+
+        if log_notification.try_recv().is_ok() {
+            log_file
+                .write_all(self.log(start_time).as_bytes())
+                .expect("Can't write logs to the log file");
+        }
+    }
+
     pub fn run(&mut self) -> [T; N] {
         fs::remove_file("outputs.csv").unwrap();
         let mut f = File::create("outputs.csv").unwrap();
@@ -399,29 +429,20 @@ impl<const N: usize, T: Gene> System<N, T> {
         let start = Instant::now();
 
         let log_notification = crossbeam::channel::tick(self.log_period);
-        let end_notification = crossbeam::channel::after(self.max_duration);
 
-        for _ in 0..self.steps / self.migration_steps {
-            self.islands.par_iter_mut().for_each(|island| {
-                for _ in 0..self.migration_steps {
-                    island.step(self.energy_reproduction_percent, self.energy_combat);
+        match self.stop_condition {
+            StopCondition::TotalSteps(steps) => {
+                for _ in 0..steps / self.migration_steps {
+                    self.run_migration_turn(&log_notification, &mut f, start);
                 }
-            });
-
-            for island in self.islands.iter_mut() {
-                island.step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
             }
-            self.migrate_agents();
-
-            if log_notification.try_recv().is_ok() {
-                f.write_all(self.log(start).as_bytes())
-                    .expect("Can't write logs to the log file");
-            }
-            if end_notification.try_recv().is_ok() {
-                return self.best_sol();
+            StopCondition::TimeLimit(duration) => {
+                let end_notification = crossbeam::channel::after(duration);
+                while end_notification.try_recv().is_err() {
+                    self.run_migration_turn(&log_notification, &mut f, start);
+                }
             }
         }
-
         self.best_sol()
     }
 }
@@ -433,8 +454,7 @@ pub struct SystemBuilder<
     C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
 > {
     island_amount: usize,
-    steps: u32,
-    max_duration: Duration,
+    stop_condition: StopCondition,
     agents_per_island: usize,
     agent_energy: u32,
     energy_passed_on_reproduction: f64,
@@ -460,8 +480,7 @@ impl<
         SystemBuilder {
             island_amount: 5,
             agents_per_island: 100,
-            steps: 10_000,
-            max_duration: Duration::from_secs(10),
+            stop_condition: StopCondition::TotalSteps(10_000),
             agent_energy: 10,
             energy_passed_on_reproduction: 0.25,
             energy_combat: 2,
@@ -481,13 +500,8 @@ impl<
         self
     }
 
-    pub fn steps(mut self, amount: u32) -> Self {
-        self.steps = amount;
-        self
-    }
-
-    pub fn max_duration(mut self, amount: Duration) -> Self {
-        self.max_duration = amount;
+    pub fn stop_condition(mut self, condition: StopCondition) -> Self {
+        self.stop_condition = condition;
         self
     }
 
@@ -566,8 +580,7 @@ impl<
 
         System {
             islands,
-            steps: self.steps,
-            max_duration: self.max_duration,
+            stop_condition: self.stop_condition,
             energy_reproduction_percent: self.energy_passed_on_reproduction,
             energy_combat: self.energy_combat,
             migration_steps: self.migration_steps,
