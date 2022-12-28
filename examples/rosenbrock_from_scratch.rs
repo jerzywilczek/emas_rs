@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use emas_rs::conf_functions::topologies::fully_connected;
 use emas_rs::conf_functions::RealConfiguration;
-use emas_rs::{Action, Gene, SystemBuilder};
+use emas_rs::{Action, Gene, StopCondition, SystemBuilder};
 
 use emas_rs::R;
 
@@ -108,7 +108,7 @@ fn main() {
     sleep(Duration::from_millis(2000));
     let mut system = SystemBuilder::new(rosenbrock2d_configuration)
         .island_amount(17)
-        .steps(1_000_000)
+        .stop_condition(StopCondition::TotalSteps(1_000_000))
         .agents_per_island(20)
         .agent_energy(15)
         .energy_passed_on_reproduction(0.25)
