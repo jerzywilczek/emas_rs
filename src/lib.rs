@@ -491,7 +491,6 @@ impl<const N: usize, T: Gene> System<N, T> {
 
 pub struct SystemBuilder<
     const N: usize,
-    R: Rng,
     T: Gene,
     C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
 > {
@@ -510,16 +509,11 @@ pub struct SystemBuilder<
     topology_fn: fn(usize) -> topologies::Topology,
     #[cfg(feature = "live-plotting")]
     live_plotting: bool,
-    phantom1: PhantomData<T>,
-    phantom2: PhantomData<R>,
+    phantom: PhantomData<T>,
 }
 
-impl<
-        const N: usize,
-        T: Gene,
-        R: Rng,
-        C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
-    > SystemBuilder<N, R, T, C>
+impl<const N: usize, T: Gene, C: conf_functions::Configuration<N, T> + Send + Sync + 'static>
+    SystemBuilder<N, T, C>
 {
     pub fn new(conf: C) -> Self {
         SystemBuilder {
@@ -538,8 +532,7 @@ impl<
             topology_fn: topologies::fully_connected,
             #[cfg(feature = "live-plotting")]
             live_plotting: false,
-            phantom1: PhantomData,
-            phantom2: PhantomData,
+            phantom: PhantomData,
         }
     }
 
@@ -610,7 +603,7 @@ impl<
         self
     }
 
-    pub fn build(self, mut rng: R) -> System<N, T> {
+    pub fn build<R: Rng>(self, mut rng: R) -> System<N, T> {
         if !topologies::is_valid(&(self.topology_fn)(self.island_amount), self.island_amount) {
             panic!("Invalid topology");
         }
