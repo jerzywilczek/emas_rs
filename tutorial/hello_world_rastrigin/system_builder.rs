@@ -1,1 +1,0 @@
-let mut system = SystemBuilder::new(rastrigin100d_configuration).build(thread_rng());

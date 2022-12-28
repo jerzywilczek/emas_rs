@@ -1,1 +1,0 @@
-pub fn default_pick_action(energy: u32, rng: &mut R) -> Action

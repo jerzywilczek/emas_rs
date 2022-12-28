@@ -1,1 +1,0 @@
-let solution = system.run();

@@ -1,1 +1,0 @@
-pub fn fixed_range_mutation(gene: &mut f64, domain: (f64, f64), rng: &mut R, mutation_range: f64)

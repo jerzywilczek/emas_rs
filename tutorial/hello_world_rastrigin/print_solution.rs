@@ -1,1 +1,0 @@
-println!("Solution: {}", rastrigin(&solution));
