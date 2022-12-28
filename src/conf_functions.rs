@@ -213,3 +213,21 @@ impl<const N: usize> Configuration<N, bool> for BinaryConfiguration<N> {
         (self.recombine)(parents_genes, rng)
     }
 }
+
+pub mod predefined {
+    use super::*;
+
+    pub fn rastrigin<const N: usize>() -> RealConfiguration<N> {
+        RealConfiguration {
+            domain: fitness::rastrigin_fitness::domain(),
+            fitness: fitness::rastrigin_fitness::rastrigin,
+            combat_winner: combat::default_combat,
+            pick_action: pick_action::default_pick_action,
+            recombine: recombination::random_cut_point_recombine,
+            pick_genes: |genes, domain, rng| gene_pickers::stochastic_pick(genes, domain, rng, 0.5),
+            mutate_gene: |gene, domain, rng| {
+                gene_mutations::normal_mutation(gene, domain, rng, 1.0)
+            },
+        }
+    }
+}
