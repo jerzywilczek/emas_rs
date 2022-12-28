@@ -38,6 +38,16 @@ pub struct BinaryConfiguration<const N: usize> {
     pub recombine: RecombinationFn<N, bool>,
 }
 
+pub struct IntegerConfiguration<const N: usize> {
+    pub domain: [(i32, i32); N],
+    pub fitness: fn(args: &[i32; N]) -> f64,
+    pub combat_winner: fn(this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R) -> bool,
+    pub pick_action: fn(energy: u32, rng: &mut R) -> Action,
+    pub pick_genes: PickGenesFn<N, i32>,
+    pub mutate_gene: fn(value: &mut i32, domain: (i32, i32), rng: &mut R),
+    pub recombine: RecombinationFn<N, i32>,
+}
+
 impl<const N: usize> Debug for RealConfiguration<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RealConfiguration").finish()
@@ -47,6 +57,12 @@ impl<const N: usize> Debug for RealConfiguration<N> {
 impl<const N: usize> Debug for BinaryConfiguration<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BinaryConfiguration").finish()
+    }
+}
+
+impl<const N: usize> Debug for IntegerConfiguration<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IntegerConfiguration").finish()
     }
 }
 
@@ -105,6 +121,50 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
         parents_genes: (&[f64; N], &[f64; N]),
         rng: &mut R,
     ) -> ([f64; N], [f64; N]) {
+        (self.recombine)(parents_genes, rng)
+    }
+}
+
+impl<const N: usize> Configuration<N, i32> for IntegerConfiguration<N> {
+    fn fitness(&self, args: &[i32; N]) -> f64 {
+        (self.fitness)(args)
+    }
+
+    fn combat_winner(
+        &self,
+        this_agent_fitness: f64,
+        other_agent_fitness: f64,
+        rng: &mut R,
+    ) -> bool {
+        (self.combat_winner)(this_agent_fitness, other_agent_fitness, rng)
+    }
+
+    fn pick_action(&self, energy: u32, rng: &mut R) -> Action {
+        (self.pick_action)(energy, rng)
+    }
+
+    fn mutate(&self, genes: &mut [i32; N], rng: &mut R) {
+        let picked_genes = (self.pick_genes)(genes, &self.domain, rng);
+
+        for (value, domain) in picked_genes {
+            (self.mutate_gene)(value, domain, rng)
+        }
+    }
+
+    fn random_genes(&self, rng: &mut R) -> [i32; N] {
+        let mut genes = [0; N];
+        for (gene, domain) in genes.iter_mut().zip(self.domain.iter()) {
+            *gene = rng.gen_range(domain.0..domain.1);
+        }
+
+        genes
+    }
+
+    fn recombine(
+        &self,
+        parents_genes: (&[i32; N], &[i32; N]),
+        rng: &mut R,
+    ) -> ([i32; N], [i32; N]) {
         (self.recombine)(parents_genes, rng)
     }
 }
