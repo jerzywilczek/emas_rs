@@ -653,7 +653,7 @@ mod tests {
             recombine: random_cut_point_recombine,
         };
         let solution = SystemBuilder::new(conf)
-            .stop_condition(StopCondition::TotalSteps(10_000))
+            .stop_condition(StopCondition::TotalSteps(1_000))
             .build(thread_rng())
             .run();
         println!("Fitness: {}", rastrigin(&solution));
