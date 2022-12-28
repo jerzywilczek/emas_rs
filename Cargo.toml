@@ -1,7 +1,15 @@
 [package]
 name = "emas_rs"
 version = "0.1.0"
+authors = ["Michał Misiak <michalmisiak@student.agh.edu.pl>", "Stanisław Łenyk <stlenyk@gmail.com>", "Jerzy Wilczek <jerzykwilczek@gmail.com>"]
 edition = "2021"
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/jerzywilczek/emas_rs"
+repository = "https://github.com/jerzywilczek/emas_rs"
+description = "Rust-based EMAS optimization algorithm"
+categories = ["algorithms", "science"]
+keywords = ["emas", "agent", "optimization", "evolution"]
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
