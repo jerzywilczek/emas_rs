@@ -5,7 +5,7 @@ use emas_rs::{
         gene_pickers::stochastic_pick, pick_action::default_pick_action,
         recombination::random_cut_point_recombine, RealConfiguration,
     },
-    SystemBuilder,
+    StopCondition, SystemBuilder,
 };
 use rand::SeedableRng;
 use rand_chacha::ChaCha12Rng;
@@ -28,7 +28,7 @@ fn benchmark(c: &mut Criterion) {
                     .island_amount(16)
                     .topology_fn(emas_rs::conf_functions::topologies::fully_connected)
                     .migration_steps(50)
-                    .steps(100);
+                    .stop_condition(StopCondition::TotalSteps(100));
 
                 s.build(ChaCha12Rng::from_seed([42; 32]))
             },
