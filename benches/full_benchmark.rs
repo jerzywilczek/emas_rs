@@ -24,7 +24,7 @@ fn benchmark(c: &mut Criterion) {
                     recombine: random_cut_point_recombine,
                 };
 
-                let s = SystemBuilder::<10, _, _, _>::new(conf)
+                let s = SystemBuilder::<10, _, _>::new(conf)
                     .island_amount(16)
                     .topology_fn(emas_rs::conf_functions::topologies::fully_connected)
                     .migration_steps(50)

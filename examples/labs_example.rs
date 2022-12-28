@@ -19,7 +19,7 @@ fn main() {
         mutate_gene: |gene, _rng| negation_mutation(gene),
         recombine: random_cut_point_recombine,
     };
-    let mut system = SystemBuilder::<N, _, _, _>::new(labs100d_configuration)
+    let mut system = SystemBuilder::<N, _, _>::new(labs100d_configuration)
         .stop_condition(StopCondition::TimeLimit(Duration::from_secs(10)))
         .build(thread_rng());
     let t0 = Instant::now();
