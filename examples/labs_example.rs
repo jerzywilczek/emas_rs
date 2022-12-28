@@ -16,7 +16,7 @@ fn main() {
         combat_winner: default_combat,
         pick_action: default_pick_action,
         pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
-        mutate_gene: |gene, _rng| negation_mutation(gene),
+        mutate_gene: |gene, _domain, _rng| negation_mutation(gene),
         recombine: random_cut_point_recombine,
     };
     let mut system = SystemBuilder::<N, _, _, _>::new(labs100d_configuration)

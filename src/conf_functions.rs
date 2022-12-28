@@ -34,7 +34,7 @@ pub struct BinaryConfiguration<const N: usize> {
     pub combat_winner: fn(this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R) -> bool,
     pub pick_action: fn(energy: u32, rng: &mut R) -> Action,
     pub pick_genes: PickGenesFn<N, bool>,
-    pub mutate_gene: fn(value: &mut bool, rng: &mut R),
+    pub mutate_gene: fn(value: &mut bool, domain: (bool, bool), rng: &mut R),
     pub recombine: RecombinationFn<N, bool>,
 }
 
@@ -190,8 +190,8 @@ impl<const N: usize> Configuration<N, bool> for BinaryConfiguration<N> {
     fn mutate(&self, genes: &mut [bool; N], rng: &mut R) {
         let picked_genes = (self.pick_genes)(genes, &[(false, true); N], rng);
 
-        for (value, _domain) in picked_genes {
-            (self.mutate_gene)(value, rng)
+        for (value, domain) in picked_genes {
+            (self.mutate_gene)(value, domain, rng)
         }
     }
 
