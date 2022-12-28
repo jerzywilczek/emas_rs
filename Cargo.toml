@@ -1,6 +1,6 @@
 [package]
 name = "emas_rs"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Michał Misiak <michalmisiak@student.agh.edu.pl>", "Stanisław Łenyk <stlenyk@gmail.com>", "Jerzy Wilczek <jerzykwilczek@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
