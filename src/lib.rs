@@ -10,6 +10,7 @@ use std::hash::Hash;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::path::Path;
+#[cfg(feature = "live-plotting")]
 use std::process;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -309,7 +310,7 @@ pub struct System<const N: usize, T: Gene> {
     conf: Arc<Configuration<N, T>>,
     topology: topologies::Topology,
     rng: R,
-    // #[cfg(feature = "live-plotting")]
+    #[cfg(feature = "live-plotting")]
     live_plotting: bool,
 }
 
@@ -443,7 +444,7 @@ impl<const N: usize, T: Gene> System<N, T> {
         }
         let mut f = File::create(&timestamped_log_filename).unwrap();
 
-        // #[cfg(feature = "live-plotting")]
+        #[cfg(feature = "live-plotting")]
         let live_plotting_process = if self.live_plotting {
             Some(live_plotting(&timestamped_log_filename))
         } else {
@@ -479,7 +480,7 @@ impl<const N: usize, T: Gene> System<N, T> {
             }
         }
 
-        // #[cfg(feature = "live-plotting")]
+        #[cfg(feature = "live-plotting")]
         if let Some(mut child) = live_plotting_process {
             child.kill().expect("Can't kill live-plotting process")
         }
@@ -507,7 +508,7 @@ pub struct SystemBuilder<
     log_filename: String,
     conf: Arc<C>,
     topology_fn: fn(usize) -> topologies::Topology,
-    // #[cfg(feature = "live-plotting")]
+    #[cfg(feature = "live-plotting")]
     live_plotting: bool,
     phantom1: PhantomData<T>,
     phantom2: PhantomData<R>,
@@ -535,7 +536,7 @@ impl<
             log_filename: "outputs".to_owned(),
             conf: Arc::new(conf),
             topology_fn: topologies::fully_connected,
-            // #[cfg(feature = "live-plotting")]
+            #[cfg(feature = "live-plotting")]
             live_plotting: false,
             phantom1: PhantomData,
             phantom2: PhantomData,
@@ -603,7 +604,7 @@ impl<
         self
     }
 
-    // #[cfg(feature = "live-plotting")]
+    #[cfg(feature = "live-plotting")]
     pub fn live_plotting(mut self, live_plotting: bool) -> Self {
         self.live_plotting = live_plotting;
         self
@@ -644,22 +645,16 @@ impl<
             conf: self.conf,
             topology: (self.topology_fn)(self.island_amount),
             rng: crate::R::from_rng(rng).unwrap(),
-            // #[cfg(feature = "live-plotting")]
+            #[cfg(feature = "live-plotting")]
             live_plotting: self.live_plotting,
         }
     }
 }
 
-// #[cfg(feature = "live-plotting")]
+#[cfg(feature = "live-plotting")]
 fn live_plotting(log_filename: &String) -> process::Child {
-    let shell = if cfg!(target_os = "windows") {
-        "cmd"
-    } else {
-        "sh"
-    }
-    .to_owned();
-
-    process::Command::new(shell)
+    process::Command::new("python3")
+        .arg("./plotting/live_plotting.py")
         .args([log_filename])
         .spawn()
         .expect("Failed to run live plotting")

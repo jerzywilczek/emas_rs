@@ -2,8 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import matplotlib as mpl
-from os.path import exists
-import time
 import sys
 
 mpl.use('tkagg')
@@ -44,8 +42,6 @@ args: [filename]
 if __name__ == '__main__':
     _, filename = sys.argv
     file_path = './{}'.format(filename)
-    while not exists(file_path):
-        time.sleep(0.5)
 
     ani = FuncAnimation(plt.gcf(), lambda i: animate(i, file_path), interval=500)
 
