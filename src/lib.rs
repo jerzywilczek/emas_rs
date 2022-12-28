@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 pub mod conf_functions;
 
-type R = rand_pcg::Pcg64Mcg;
+pub type R = rand_pcg::Pcg64Mcg;
 
 type Configuration<const N: usize, T> =
     dyn conf_functions::Configuration<N, T> + Send + Sync + 'static;
