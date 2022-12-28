@@ -646,9 +646,9 @@ impl<const N: usize, T: Gene, C: conf_functions::Configuration<N, T> + Send + Sy
 
 #[cfg(feature = "live-plotting")]
 fn live_plotting(log_filename: &String) -> process::Child {
+    let python_program = include_str!(r"../plotting/live_plotting.py");
     process::Command::new("python3")
-        .arg("./plotting/live_plotting.py")
-        .args([log_filename])
+        .args(["-c", python_program, log_filename])
         .spawn()
         .expect("Failed to run live plotting")
 }
