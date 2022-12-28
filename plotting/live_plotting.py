@@ -4,6 +4,7 @@ from matplotlib.animation import FuncAnimation
 import matplotlib as mpl
 from os.path import exists
 import time
+import sys
 
 mpl.use('tkagg')
 
@@ -13,8 +14,8 @@ figure.set_size_inches(9.5, 6.5)
 figure.set_dpi(100)
 
 
-def animate(i):
-    data = pd.read_csv('./outputs.csv')
+def animate(i, path):
+    data = pd.read_csv(path)
     xs = data['timestamp']
 
     axis[0, 0].clear()
@@ -37,10 +38,16 @@ def animate(i):
     plt.tight_layout()
 
 
-while not exists('./outputs.csv'):
-    time.sleep(0.05)
+"""
+args: [filename]
+"""
+if __name__ == '__main__':
+    _, filename = sys.argv
+    file_path = './{}'.format(filename)
+    while not exists(file_path):
+        time.sleep(0.5)
 
-ani = FuncAnimation(plt.gcf(), animate, interval=500)
+    ani = FuncAnimation(plt.gcf(), lambda i: animate(i, file_path), interval=500)
 
-plt.tight_layout()
-plt.show()
+    plt.tight_layout()
+    plt.show()
