@@ -5,9 +5,9 @@ use emas_rs::conf_functions::gene_pickers::stochastic_pick;
 use emas_rs::conf_functions::pick_action::default_pick_action;
 use emas_rs::conf_functions::recombination::random_cut_point_recombine;
 use emas_rs::conf_functions::BinaryConfiguration;
-use emas_rs::SystemBuilder;
+use emas_rs::{StopCondition, SystemBuilder};
 use rand::thread_rng;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 fn main() {
     const N: usize = 100;
@@ -20,7 +20,7 @@ fn main() {
         recombine: random_cut_point_recombine,
     };
     let mut system = SystemBuilder::<N, _, _, _>::new(labs100d_configuration)
-        .steps(1_000_000)
+        .stop_condition(StopCondition::TimeLimit(Duration::from_secs(10)))
         .build(thread_rng());
     let t0 = Instant::now();
     let sol = system.run();

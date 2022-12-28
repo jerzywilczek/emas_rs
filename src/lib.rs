@@ -1,13 +1,15 @@
+use chrono::{Datelike, Timelike, Utc};
 use conf_functions::topologies;
+use crossbeam::channel::Receiver;
 use rand::prelude::SliceRandom;
 use rand::{seq::IteratorRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
-use std::fs;
 use std::fs::File;
 use std::hash::Hash;
 use std::io::Write;
 use std::marker::PhantomData;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -286,15 +288,22 @@ impl<const N: usize, T: Gene> Island<N, T> {
 }
 
 #[derive(Debug)]
+pub enum StopCondition {
+    TotalSteps(u32),
+    TimeLimit(Duration),
+}
+
+#[derive(Debug)]
 pub struct System<const N: usize, T: Gene> {
     islands: Vec<Island<N, T>>,
-    steps: u32,
+    stop_condition: StopCondition,
     energy_reproduction_percent: f64,
     energy_combat: u32,
     migration_steps: u32,
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     logs: Vec<String>,
+    log_filename: String,
     log_period: Duration,
     conf: Arc<Configuration<N, T>>,
     topology: topologies::Topology,
@@ -381,9 +390,56 @@ impl<const N: usize, T: Gene> System<N, T> {
             .genes
     }
 
+    fn run_migration_turn(
+        &mut self,
+        log_notification: &Receiver<Instant>,
+        log_file: &mut File,
+        start_time: Instant,
+    ) {
+        self.islands.par_iter_mut().for_each(|island| {
+            for _ in 0..self.migration_steps {
+                island.step(self.energy_reproduction_percent, self.energy_combat);
+            }
+        });
+
+        for island in self.islands.iter_mut() {
+            island.step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
+        }
+        self.migrate_agents();
+
+        if log_notification.try_recv().is_ok() {
+            log_file
+                .write_all(self.log(start_time).as_bytes())
+                .expect("Can't write logs to the log file");
+        }
+    }
+
     pub fn run(&mut self) -> [T; N] {
-        fs::remove_file("outputs.csv").unwrap();
-        let mut f = File::create("outputs.csv").unwrap();
+        let timestamp = Utc::now();
+        let timestamp = format!(
+            "{}{}{}{}{}{}",
+            timestamp.year(),
+            timestamp.month(),
+            timestamp.day(),
+            timestamp.hour(),
+            timestamp.minute(),
+            timestamp.second()
+        );
+        let mut timestamped_log_filename = String::from(&self.log_filename) + &timestamp + ".csv";
+        if Path::new(&timestamped_log_filename).exists() {
+            timestamped_log_filename = String::from(&self.log_filename) + &timestamp;
+            let mut filename_suffix = 1;
+            let mut new_timestamped_log_filename =
+                format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
+            while Path::new(&new_timestamped_log_filename).exists() {
+                filename_suffix += 1;
+                new_timestamped_log_filename =
+                    format!("{}-{}.csv", timestamped_log_filename, filename_suffix);
+            }
+            timestamped_log_filename = new_timestamped_log_filename;
+        }
+        let mut f = File::create(&timestamped_log_filename).unwrap();
+
         f.write_all(
             self.logs
                 .iter()
@@ -399,24 +455,19 @@ impl<const N: usize, T: Gene> System<N, T> {
 
         let log_notification = crossbeam::channel::tick(self.log_period);
 
-        for _ in 0..self.steps / self.migration_steps {
-            self.islands.par_iter_mut().for_each(|island| {
-                for _ in 0..self.migration_steps {
-                    island.step(self.energy_reproduction_percent, self.energy_combat);
+        match self.stop_condition {
+            StopCondition::TotalSteps(steps) => {
+                for _ in 0..steps / self.migration_steps {
+                    self.run_migration_turn(&log_notification, &mut f, start);
                 }
-            });
-
-            for island in self.islands.iter_mut() {
-                island.step_migrations(self.migrations_best_amount, self.migrations_elite_amount);
             }
-            self.migrate_agents();
-
-            if log_notification.try_recv().is_ok() {
-                f.write_all(self.log(start).as_bytes())
-                    .expect("Can't write logs to the log file");
+            StopCondition::TimeLimit(duration) => {
+                let end_notification = crossbeam::channel::after(duration);
+                while end_notification.try_recv().is_err() {
+                    self.run_migration_turn(&log_notification, &mut f, start);
+                }
             }
         }
-
         self.best_sol()
     }
 }
@@ -428,7 +479,7 @@ pub struct SystemBuilder<
     C: conf_functions::Configuration<N, T> + Send + Sync + 'static,
 > {
     island_amount: usize,
-    steps: u32,
+    stop_condition: StopCondition,
     agents_per_island: usize,
     agent_energy: u32,
     energy_passed_on_reproduction: f64,
@@ -437,6 +488,7 @@ pub struct SystemBuilder<
     migrations_best_amount: usize,
     migrations_elite_amount: usize,
     log_period: Duration,
+    log_filename: String,
     conf: Arc<C>,
     topology_fn: fn(usize) -> topologies::Topology,
     phantom1: PhantomData<T>,
@@ -454,7 +506,7 @@ impl<
         SystemBuilder {
             island_amount: 5,
             agents_per_island: 100,
-            steps: 10_000,
+            stop_condition: StopCondition::TotalSteps(10_000),
             agent_energy: 10,
             energy_passed_on_reproduction: 0.25,
             energy_combat: 2,
@@ -462,6 +514,7 @@ impl<
             migrations_best_amount: 10,
             migrations_elite_amount: 5,
             log_period: Duration::from_secs(1),
+            log_filename: "outputs".to_owned(),
             conf: Arc::new(conf),
             topology_fn: topologies::fully_connected,
             phantom1: PhantomData,
@@ -474,8 +527,8 @@ impl<
         self
     }
 
-    pub fn steps(mut self, amount: u32) -> Self {
-        self.steps = amount;
+    pub fn stop_condition(mut self, condition: StopCondition) -> Self {
+        self.stop_condition = condition;
         self
     }
 
@@ -507,6 +560,11 @@ impl<
 
     pub fn log_period(mut self, amount: Duration) -> Self {
         self.log_period = amount;
+        self
+    }
+
+    pub fn log_filename(mut self, filename: String) -> Self {
+        self.log_filename = filename;
         self
     }
 
@@ -554,17 +612,50 @@ impl<
 
         System {
             islands,
-            steps: self.steps,
+            stop_condition: self.stop_condition,
             energy_reproduction_percent: self.energy_passed_on_reproduction,
             energy_combat: self.energy_combat,
             migration_steps: self.migration_steps,
             migrations_best_amount: self.migrations_best_amount,
             migrations_elite_amount: self.migrations_elite_amount,
             logs,
+            log_filename: self.log_filename,
             log_period: self.log_period,
             conf: self.conf,
             topology: (self.topology_fn)(self.island_amount),
             rng: crate::R::from_rng(rng).unwrap(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn integration_test_rastrigin() {
+        use conf_functions::combat::default_combat;
+        use conf_functions::fitness::rastrigin_fitness::{domain, rastrigin};
+        use conf_functions::gene_mutations::normal_mutation;
+        use conf_functions::gene_pickers::stochastic_pick;
+        use conf_functions::pick_action::default_pick_action;
+        use conf_functions::recombination::random_cut_point_recombine;
+        use conf_functions::RealConfiguration;
+        use rand::thread_rng;
+
+        let conf = RealConfiguration {
+            domain: domain::<10>(),
+            fitness: rastrigin,
+            combat_winner: default_combat,
+            pick_action: default_pick_action,
+            pick_genes: |genes, domain, rng| stochastic_pick(genes, domain, rng, 0.5),
+            mutate_gene: |gene, domain, rng| normal_mutation(gene, domain, rng, 1.0),
+            recombine: random_cut_point_recombine,
+        };
+        let solution = SystemBuilder::new(conf)
+            .stop_condition(StopCondition::TotalSteps(1_000))
+            .build(thread_rng())
+            .run();
+        println!("Fitness: {}", rastrigin(&solution));
     }
 }
