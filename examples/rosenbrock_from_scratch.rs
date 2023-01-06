@@ -1,15 +1,11 @@
+use emas_rs::conf_functions::topologies::fully_connected;
+use emas_rs::conf_functions::RealConfiguration;
+use emas_rs::{Action, Gene, StopCondition, SystemBuilder, R};
+
 use rand::seq::IteratorRandom;
 use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg64Mcg;
-use std::process::Command;
-use std::thread::sleep;
 use std::time::{Duration, Instant};
-
-use emas_rs::conf_functions::topologies::fully_connected;
-use emas_rs::conf_functions::RealConfiguration;
-use emas_rs::{Action, Gene, StopCondition, SystemBuilder};
-
-use emas_rs::R;
 
 const N: usize = 2;
 const DOMAIN: [(f64, f64); N] = [(-5.0, 5.0); N];
@@ -98,14 +94,6 @@ fn main() {
         mutate_gene: my_mutation,
     };
 
-    let mut list_dir = Command::new("python3");
-
-    // Execute `ls` in the current directory of the program.
-    let mut child = list_dir
-        .arg("./plotting/live_plotting.py")
-        .spawn()
-        .expect("process failed to execute");
-    sleep(Duration::from_millis(2000));
     let mut system = SystemBuilder::new(rosenbrock2d_configuration)
         .island_amount(17)
         .stop_condition(StopCondition::TotalSteps(1_000_000))
@@ -119,17 +107,16 @@ fn main() {
         .log_period(Duration::from_secs(5))
         .topology_fn(fully_connected)
         .build(Pcg64Mcg::seed_from_u64(1234));
+
     let start_time = Instant::now();
     let solution = system.run();
     let end_time = start_time.elapsed().as_secs_f32();
+
     println!(
-        "time = {}, sulution = [{}, {}] => {}",
+        "time = {}, solution = [{}, {}] => {}",
         end_time,
         solution[0],
         solution[1],
         rosenbrock_2d(&solution)
     );
-
-    sleep(Duration::from_millis(5000));
-    child.kill().expect("Can''t kill the child process");
 }
