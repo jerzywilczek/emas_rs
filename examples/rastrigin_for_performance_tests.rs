@@ -1,11 +1,14 @@
-use emas_rs::conf_functions::combat::default_combat;
-use emas_rs::conf_functions::fitness::rastrigin_fitness::{domain, rastrigin};
-use emas_rs::conf_functions::gene_mutations::fixed_range_mutation;
-use emas_rs::conf_functions::gene_pickers::stochastic_pick;
-use emas_rs::conf_functions::pick_action::default_pick_action;
-use emas_rs::conf_functions::recombination::random_cut_point_recombine;
-use emas_rs::conf_functions::{topologies, RealConfiguration};
+use emas_rs::conf_functions::{
+    combat::default_combat,
+    fitness::rastrigin_fitness::{domain, rastrigin},
+    gene_mutations::fixed_range_mutation,
+    gene_pickers::stochastic_pick,
+    pick_action::default_pick_action,
+    recombination::random_cut_point_recombine,
+    topologies, RealConfiguration,
+};
 use emas_rs::{StopCondition, SystemBuilder};
+
 use rand::SeedableRng;
 
 fn main() {
