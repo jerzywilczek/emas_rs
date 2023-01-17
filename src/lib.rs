@@ -597,6 +597,14 @@ impl<const N: usize, T: Gene, C: conf_functions::Configuration<N, T> + Send + Sy
         self
     }
 
+    /// Toggles live plotting using Python script.
+    /// Requires `python==3.10` and packages:
+    /// * `matplotlib==3.6.3`
+    /// * `pandas==1.5.2`
+    /// ```sh
+    /// pip install matplotlib==3.6.3 pandas==1.5.2
+    /// ```
+    /// Older and newer versions _should_ also work however the script was tested using said setup.
     #[cfg(feature = "live-plotting")]
     pub fn live_plotting(mut self, live_plotting: bool) -> Self {
         self.live_plotting = live_plotting;

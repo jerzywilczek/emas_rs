@@ -12,7 +12,7 @@ figure.set_size_inches(9.5, 6.5)
 figure.set_dpi(100)
 
 
-def animate(i, path):
+def animate(_, path):
     data = pd.read_csv(path)
     xs = data['timestamp']
 
