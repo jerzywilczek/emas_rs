@@ -26,8 +26,8 @@ pub mod rosenbrock_fitness {
         let a = 1.0;
         let b = 100.0;
         let mut total = 0.0;
-        for xi in 0..args.len() - 1 {
-            total += b * (args[xi + 1] - args[xi].powi(2)).powi(2) + (a - args[xi]).powi(2);
+        for xi in 1..args.len() {
+            total += b * (args[xi] - args[xi - 1].powi(2)).powi(2) + (a - args[xi - 1]).powi(2);
         }
         total
     }
@@ -50,6 +50,7 @@ pub mod ackley_fitness {
     }
 }
 
+/// [Low Autocorrelation Binary Sequences](http://militzer.berkeley.edu/sequences.html)
 pub mod labs_fitness {
     pub fn labs<const N: usize>(args: &[bool; N]) -> f64 {
         merit_factor::<N>(labs_energy(args) as f64)
@@ -60,30 +61,26 @@ pub mod labs_fitness {
     }
 
     fn labs_energy<const N: usize>(args: &[bool; N]) -> i32 {
-        let mut energy = 0;
-        for k in 1..N {
-            let autocorrelation_result = autocorrelation(args, k);
-            energy += autocorrelation_result * autocorrelation_result;
-        }
-        energy
+        (1..N).map(|k| autocorrelation(args, k).pow(2)).sum()
     }
 
     fn autocorrelation<const N: usize>(args: &[bool; N], distance: usize) -> i32 {
-        let mut result: i32 = 0;
-        for i in 0..N - distance {
-            let s_i = if args[i] { 1 } else { -1 };
-            let s_ik = if args[i + distance] { 1 } else { -1 };
-            result += s_i * s_ik;
-        }
-        result
+        (0..N - distance)
+            .map(|i| {
+                let s_i = if args[i] { 1 } else { -1 };
+                let s_ik = if args[i + distance] { 1 } else { -1 };
+                s_i * s_ik
+            })
+            .sum()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::conf_functions::fitness::*;
+    use super::*;
     use ackley_fitness::ackley;
     use assert_approx_eq::assert_approx_eq;
+    use labs_fitness::labs;
     use rastrigin_fitness::rastrigin;
     use rosenbrock_fitness::rosenbrock;
 
@@ -133,5 +130,40 @@ mod tests {
             20.170366886584574,
             eps
         );
+    }
+
+    macro_rules! bool_arr {
+        () => (
+            [false; 0]
+        );
+         ($($e:expr),+) => (
+            [$(if $e == 0 {false} else if $e == 1 {true} else {panic!("Expected only 0s or 1s, got {}", $e)},)+]
+        );
+    }
+
+    #[test]
+    fn labs_correct_values() {
+        let test1 = (
+            bool_arr![
+                0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1,
+                0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1,
+                0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0
+            ],
+            8.20,
+        );
+        let test2 = (
+            bool_arr![
+                1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0,
+                1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1,
+                0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0,
+                1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1,
+                1
+            ],
+            8.49,
+        );
+
+        let eps = 0.01;
+        assert_approx_eq!(labs(&test1.0), test1.1, eps);
+        assert_approx_eq!(labs(&test2.0), test2.1, eps);
     }
 }

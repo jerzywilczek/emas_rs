@@ -230,4 +230,15 @@ pub mod predefined {
             },
         }
     }
+
+    pub fn labs<const N: usize>() -> BinaryConfiguration<N> {
+        BinaryConfiguration {
+            fitness: fitness::labs_fitness::labs,
+            combat_winner: combat::default_combat,
+            pick_action: pick_action::default_pick_action,
+            pick_genes: |genes, domain, rng| gene_pickers::stochastic_pick(genes, domain, rng, 0.5),
+            mutate_gene: |gene, _rng| gene_mutations::negation_mutation(gene),
+            recombine: recombination::random_cut_point_recombine,
+        }
+    }
 }
