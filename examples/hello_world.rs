@@ -1,10 +1,9 @@
-use emas_rs::{conf_functions, SystemBuilder};
-use rand::thread_rng;
+use emas_rs::{SystemBuilder, conf_functions};
 
 fn main() {
     // "10" is function domain dimension, i.e. f: R^10 -> R
     let solution = SystemBuilder::new(conf_functions::predefined::rastrigin::<10>())
-        .build(thread_rng())
+        .build(rand::rng())
         .run();
 
     println!(

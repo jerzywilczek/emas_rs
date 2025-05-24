@@ -22,7 +22,7 @@ pub fn random_cut_point_recombine<const N: usize, T: Gene>(
     parents_genes: (&[T; N], &[T; N]),
     rng: &mut R,
 ) -> ([T; N], [T; N]) {
-    let cut_point = rng.gen_range(0..N);
+    let cut_point = rng.random_range(0..N);
     let mut children_genes = ([T::default(); N], [T::default(); N]);
 
     for i in 0..cut_point {
@@ -54,7 +54,7 @@ pub fn random_recombine<const N: usize>(
     rng: &mut R,
 ) -> ([f64; N], [f64; N]) {
     let mut choose_random =
-        |value1: f64, value2: f64| rng.gen_range(value1.min(value2)..=value1.max(value2));
+        |value1: f64, value2: f64| rng.random_range(value1.min(value2)..=value1.max(value2));
     let mut children_genes = ([0.0; N], [0.0; N]);
 
     for i in 0..N {

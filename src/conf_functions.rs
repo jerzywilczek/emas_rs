@@ -70,7 +70,7 @@ pub trait Configuration<const N: usize, T>: Debug {
     fn fitness(&self, args: &[T; N]) -> f64;
 
     fn combat_winner(&self, this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R)
-        -> bool;
+    -> bool;
 
     fn pick_action(&self, energy: u32, rng: &mut R) -> Action;
 
@@ -110,7 +110,7 @@ impl<const N: usize> Configuration<N, f64> for RealConfiguration<N> {
     fn random_genes(&self, rng: &mut R) -> [f64; N] {
         let mut genes = [0.0; N];
         for (gene, domain) in genes.iter_mut().zip(self.domain.iter()) {
-            *gene = rng.gen_range(domain.0..domain.1);
+            *gene = rng.random_range(domain.0..domain.1);
         }
 
         genes
@@ -154,7 +154,7 @@ impl<const N: usize> Configuration<N, i32> for IntegerConfiguration<N> {
     fn random_genes(&self, rng: &mut R) -> [i32; N] {
         let mut genes = [0; N];
         for (gene, domain) in genes.iter_mut().zip(self.domain.iter()) {
-            *gene = rng.gen_range(domain.0..domain.1);
+            *gene = rng.random_range(domain.0..domain.1);
         }
 
         genes
@@ -198,7 +198,7 @@ impl<const N: usize> Configuration<N, bool> for BinaryConfiguration<N> {
     fn random_genes(&self, rng: &mut R) -> [bool; N] {
         let mut genes = [false; N];
         for gene in genes.iter_mut() {
-            if rng.gen::<f64>() < 0.5 {
+            if rng.random::<f64>() < 0.5 {
                 *gene = !*gene;
             }
         }

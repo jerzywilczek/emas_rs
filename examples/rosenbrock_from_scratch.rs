@@ -1,6 +1,6 @@
-use emas_rs::conf_functions::topologies::fully_connected;
 use emas_rs::conf_functions::RealConfiguration;
-use emas_rs::{Action, Gene, StopCondition, SystemBuilder, R};
+use emas_rs::conf_functions::topologies::fully_connected;
+use emas_rs::{Action, Gene, R, StopCondition, SystemBuilder};
 
 use rand::seq::IteratorRandom;
 use rand::{Rng, SeedableRng};
@@ -23,7 +23,7 @@ fn my_combat(this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R) -> 
     if this_agent_fitness < other_agent_fitness {
         win_chance = 0.8;
     }
-    if rng.gen::<f64>() < win_chance {
+    if rng.random::<f64>() < win_chance {
         return true;
     }
     false
@@ -31,7 +31,7 @@ fn my_combat(this_agent_fitness: f64, other_agent_fitness: f64, rng: &mut R) -> 
 
 pub fn my_pick_action(energy: u32, rng: &mut R) -> Action {
     let mut reproduce_with_chance = |chance: f64| {
-        if rng.gen::<f64>() < chance {
+        if rng.random::<f64>() < chance {
             Action::Reproduce
         } else {
             Action::Combat
@@ -62,7 +62,7 @@ pub fn my_genes_pick<'a, const N: usize, T: Gene>(
 }
 
 pub fn my_mutation(gene: &mut f64, domain: (f64, f64), rng: &mut R) {
-    *gene += 3.5 * (rng.gen::<f64>() - 0.5);
+    *gene += 3.5 * (rng.random::<f64>() - 0.5);
     *gene = gene.clamp(domain.0, domain.1);
 }
 

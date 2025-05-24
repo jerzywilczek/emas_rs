@@ -1,6 +1,6 @@
 use crate::{Gene, R};
-use rand::seq::IteratorRandom;
 use rand::Rng;
+use rand::seq::IteratorRandom;
 
 pub fn stochastic_pick<'a, const N: usize, T: Gene>(
     genes: &'a mut [T; N],
@@ -11,7 +11,7 @@ pub fn stochastic_pick<'a, const N: usize, T: Gene>(
     let mut mutated_bits_count: usize = (mutation_chance * genes.len() as f64) as usize;
     let chance_for_extra_bit: f64 =
         (mutation_chance * genes.len() as f64) - mutated_bits_count as f64;
-    if rng.gen::<f64>() < chance_for_extra_bit {
+    if rng.random::<f64>() < chance_for_extra_bit {
         mutated_bits_count += 1;
     }
 

@@ -1,15 +1,14 @@
 use emas_rs::conf_functions::{
+    RealConfiguration,
     combat::default_combat,
     fitness::rastrigin_fitness::{domain, rastrigin},
     gene_mutations::normal_mutation,
     gene_pickers::stochastic_pick,
     pick_action::default_pick_action,
     recombination::random_cut_point_recombine,
-    RealConfiguration,
 };
 use emas_rs::{StopCondition, SystemBuilder};
 
-use rand::thread_rng;
 use std::time::{Duration, Instant};
 
 fn main() {
@@ -26,7 +25,7 @@ fn main() {
 
     let mut system = SystemBuilder::new(rastrigin100d_configuration)
         .stop_condition(StopCondition::TimeLimit(Duration::from_secs(10)))
-        .build(thread_rng());
+        .build(rand::rng());
 
     let t0 = Instant::now();
     let sol = system.run();

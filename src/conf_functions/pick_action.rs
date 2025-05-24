@@ -8,7 +8,7 @@ pub fn double_threshold_pick_action(
     reproduction_chances: (f64, f64),
 ) -> Action {
     let mut reproduce_with_chance = |chance: f64| {
-        if rng.gen::<f64>() < chance {
+        if rng.random::<f64>() < chance {
             Action::Reproduce
         } else {
             Action::Combat

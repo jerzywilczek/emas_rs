@@ -1,11 +1,11 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use emas_rs::{
-    conf_functions::{
-        combat::default_combat, fitness::rastrigin_fitness, gene_mutations::fixed_range_mutation,
-        gene_pickers::stochastic_pick, pick_action::default_pick_action,
-        recombination::random_cut_point_recombine, RealConfiguration,
-    },
     StopCondition, SystemBuilder,
+    conf_functions::{
+        RealConfiguration, combat::default_combat, fitness::rastrigin_fitness,
+        gene_mutations::fixed_range_mutation, gene_pickers::stochastic_pick,
+        pick_action::default_pick_action, recombination::random_cut_point_recombine,
+    },
 };
 use rand::SeedableRng;
 use rand_chacha::ChaCha12Rng;

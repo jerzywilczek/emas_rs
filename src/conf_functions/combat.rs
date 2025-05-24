@@ -6,7 +6,7 @@ pub fn default_combat(this_agent_fitness: f64, other_agent_fitness: f64, rng: &m
     if this_agent_fitness < other_agent_fitness {
         win_chance = 0.8;
     }
-    if rng.gen::<f64>() < win_chance {
+    if rng.random::<f64>() < win_chance {
         return true;
     }
     false

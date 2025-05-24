@@ -1,11 +1,12 @@
 use emas_rs::conf_functions::{
+    RealConfiguration,
     combat::default_combat,
     fitness::rastrigin_fitness::{domain, rastrigin},
     gene_mutations::fixed_range_mutation,
     gene_pickers::stochastic_pick,
     pick_action::default_pick_action,
     recombination::random_cut_point_recombine,
-    topologies, RealConfiguration,
+    topologies,
 };
 use emas_rs::{StopCondition, SystemBuilder};
 

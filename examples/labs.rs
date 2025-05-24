@@ -1,11 +1,10 @@
 use emas_rs::conf_functions::{
-    combat::default_combat, fitness::labs_fitness::labs, gene_mutations::negation_mutation,
-    gene_pickers::stochastic_pick, pick_action::default_pick_action,
-    recombination::random_cut_point_recombine, BinaryConfiguration,
+    BinaryConfiguration, combat::default_combat, fitness::labs_fitness::labs,
+    gene_mutations::negation_mutation, gene_pickers::stochastic_pick,
+    pick_action::default_pick_action, recombination::random_cut_point_recombine,
 };
 use emas_rs::{StopCondition, SystemBuilder};
 
-use rand::thread_rng;
 use std::time::{Duration, Instant};
 
 fn main() {
@@ -21,7 +20,7 @@ fn main() {
 
     let mut system = SystemBuilder::new(labs100d_configuration)
         .stop_condition(StopCondition::TimeLimit(Duration::from_secs(10)))
-        .build(thread_rng());
+        .build(rand::rng());
 
     let t0 = Instant::now();
     let sol = system.run();

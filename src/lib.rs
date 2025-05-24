@@ -2,7 +2,7 @@ use chrono::{Datelike, Timelike, Utc};
 use conf_functions::topologies;
 use crossbeam::channel::Receiver;
 use rand::prelude::SliceRandom;
-use rand::{seq::IteratorRandom, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, seq::IteratorRandom};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 use std::fs::File;
@@ -85,7 +85,7 @@ impl<const N: usize, T: Gene> Agent<N, T> {
             fitness: 0.0,
         };
         let mut ch2 = Agent {
-            energy: (par1_en + par2_en + 1) / 2,
+            energy: (par1_en + par2_en).div_ceil(2),
             id: child_ids.1,
             genes: children_genes.1,
             fitness: 0.0,
@@ -156,9 +156,9 @@ impl<const N: usize, T: Gene> Island<N, T> {
         agent_energy: u32,
         id: usize,
         conf: Arc<Configuration<N, T>>,
-        rng: impl Rng,
+        rng: &mut impl Rng,
     ) -> Island<N, T> {
-        let mut rng = R::from_rng(rng).unwrap();
+        let mut rng = R::from_rng(rng);
         let agents: HashMap<AgentId, Agent<N, T>> = (0..agents_amount)
             .map(|a_id| {
                 (
@@ -368,7 +368,7 @@ impl<const N: usize, T: Gene> System<N, T> {
             while let Some(agent) = island.migration_queue.pop() {
                 let new = match connected_islands.is_empty() {
                     true => island._id,
-                    false => connected_islands[self.rng.gen_range(0..connected_islands.len())],
+                    false => connected_islands[self.rng.random_range(0..connected_islands.len())],
                 };
                 push_queue.push((new, agent));
             }
@@ -637,7 +637,7 @@ impl<const N: usize, T: Gene, C: conf_functions::Configuration<N, T> + Send + Sy
             log_period: self.log_period,
             conf: self.conf,
             topology: (self.topology_fn)(self.island_amount),
-            rng: crate::R::from_rng(rng).unwrap(),
+            rng: crate::R::from_rng(&mut rng),
             #[cfg(feature = "live-plotting")]
             live_plotting: self.live_plotting,
         }
@@ -659,14 +659,14 @@ mod tests {
 
     #[test]
     fn integration_test_rastrigin() {
+        use conf_functions::RealConfiguration;
         use conf_functions::combat::default_combat;
         use conf_functions::fitness::rastrigin_fitness::{domain, rastrigin};
         use conf_functions::gene_mutations::normal_mutation;
         use conf_functions::gene_pickers::stochastic_pick;
         use conf_functions::pick_action::default_pick_action;
         use conf_functions::recombination::random_cut_point_recombine;
-        use conf_functions::RealConfiguration;
-        use rand::thread_rng;
+        use rand::rng;
 
         let conf = RealConfiguration {
             domain: domain::<10>(),
@@ -679,7 +679,7 @@ mod tests {
         };
         let solution = SystemBuilder::new(conf)
             .stop_condition(StopCondition::TotalSteps(1_000))
-            .build(thread_rng())
+            .build(rng())
             .run();
         println!("Fitness: {}", rastrigin(&solution));
     }
